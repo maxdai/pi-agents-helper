@@ -62,6 +62,23 @@ meeting_loop 通过注入 responder 复用。human 插话不改变状态机—�
 - `docs/pi-helper-design.md`：**本项目设计文档**（信息层/流程层分离、
   各阶段行为、配额语义、实现清单、测试策略）。
 
+## 测试方法论（程序化应对，用户 2026-08-30 要求）
+
+**原则**：反复遇到的问题必须总结出程序化应对并固化（测试装置/helper/文档），
+不能总是再试一次碰运气。
+
+1. **git 写前 pull 是硬规则**：测试写消息统一走 `tests/test_meeting_concurrency.py`
+   的 `write_msg` helper（写前 pull + commit + push，与生产 `commit_new_files`
+   同构）——多 work 交替写不 pull 必然 push rejected（fetch first），
+   这是测试装置问题，不是设计/实现问题。新测试写消息一律用它，不自己拼。
+2. **进程检测**：`pgrep -f` 会匹配到运行它的 bash 包装自身（命令行含搜索串）
+   → 误判进程存活。用 `ps aux | grep "[x]xx"`（方括号技巧，grep 自身不匹配）
+   或精确 PID（`ps -p <pid>`）。
+3. **失败三分类**（沿用源项目）：设计漏洞（修设计+实现）/ 实现误判（撤回
+   回正确实现）/ 测试问题（修测试/装置）。在错误归因上堆补丁会越改越乱。
+4. **装置对齐生产形状**：setup_env 用生产 `gen_protocol`；消息产物用带写前
+   同步的 `write_msg`——装置与生产路径不一致会掩盖真实 bug 或制造假失败。
+
 ## Git 准则（用户约定，沿用源项目）
 
 1. **每次改动先更新本地 git**：对本项目代码/文档的每次修改，先 `git add` + `git commit` 记录。

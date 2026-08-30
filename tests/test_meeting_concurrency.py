@@ -18,7 +18,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from meeting_fs import run_git
+from meeting_fs import run_git, write_message
 
 BASE = "/tmp/meeting-test"
 SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fake_agent.py")
@@ -63,6 +63,20 @@ def setup_env(test_dir, agents):
         work_dirs[a] = w
 
     return base, bare, work_dirs
+
+
+def write_msg(workdir, path, frontmatter, body="正文"):
+    """测试通用：模拟 agent/human 的消息产物落 bare（write + commit + push）。
+
+    写前 pull（对齐生产 commit_new_files 的写前同步——多 work 交替写时
+    本地会落后，不 pull 则 push 被拒（fetch first）。测试失败三分类：
+    这是测试装置问题，不是设计/实现问题——装置对齐生产形状后不再重踩。
+    """
+    run_git(workdir, "pull", "--rebase", "--autostash", check=False)
+    write_message(workdir, path, frontmatter, body)
+    run_git(workdir, "add", "--", path)
+    run_git(workdir, "commit", "-m", f"discuss: {path}")
+    run_git(workdir, "push")
 
 
 def spawn_agents(work_dirs, agents, sleep_map, crash_map, max_meeting=4,
