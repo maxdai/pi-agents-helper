@@ -91,6 +91,21 @@ def write_msg(workdir, path, frontmatter, body="正文"):
     run_git(workdir, "push")
 
 
+def types_at_head(bare):
+    """HEAD 树中消息类型分布（测试断言 helper，各测试文件共用）。"""
+    from meeting_fs import is_message_file
+    types = {}
+    r = run_git(bare, "ls-tree", "-r", "--name-only", "HEAD")
+    for f in r.stdout.strip().splitlines():
+        if is_message_file(f):
+            r3 = run_git(bare, "show", f"HEAD:{f}", check=False)
+            for l in r3.stdout.splitlines():
+                if l.startswith("type:"):
+                    t = l.split(":", 1)[1].strip()
+                    types[t] = types.get(t, 0) + 1
+    return types
+
+
 def spawn_agents(work_dirs, agents, sleep_map, crash_map, max_meeting=4,
                  max_rr=5):
     """spawn FakeAgent 进程（v2 双配额）。返回 (procs, logs)。"""

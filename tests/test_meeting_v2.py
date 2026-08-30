@@ -20,22 +20,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from meeting_fs import run_git
-from tests.test_meeting_concurrency import setup_env
-
-
-def _types_at_head(bare):
-    """HEAD 树中消息类型分布。"""
-    types = {}
-    from meeting_fs import is_message_file
-    r = run_git(bare, "ls-tree", "-r", "--name-only", "HEAD")
-    for f in r.stdout.strip().splitlines():
-        if is_message_file(f):
-            r3 = run_git(bare, "show", f"HEAD:{f}", check=False)
-            for l in r3.stdout.splitlines():
-                if l.startswith("type:"):
-                    t = l.split(":", 1)[1].strip()
-                    types[t] = types.get(t, 0) + 1
-    return types
+from tests.test_meeting_concurrency import setup_env, types_at_head
 
 
 class TestFullChain(unittest.TestCase):
@@ -53,7 +38,7 @@ class TestFullChain(unittest.TestCase):
         base, bare, all_exit, alive = self._run("v2-chain", ["a", "b"])
         try:
             self.assertTrue(all_exit, f"进程未退出: {alive}")
-            types = _types_at_head(bare)
+            types = types_at_head(bare)
             self.assertIn("concluded", types,
                           f"应出现 concluded: {types}")
             # result.md 产物必须生成（继承主协议 7.4：收尾 = result.md + concluded）
@@ -137,7 +122,7 @@ class TestFullChain(unittest.TestCase):
         base, bare, all_exit, alive = self._run("v2-rr", ["a", "b"])
         try:
             self.assertTrue(all_exit, f"进程未退出: {alive}")
-            types = _types_at_head(bare)
+            types = types_at_head(bare)
             self.assertIn("pass", types, f"RR 应产 pass: {types}")
             self.assertIn("concluded", types, f"应收尾: {types}")
         finally:

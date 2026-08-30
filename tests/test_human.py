@@ -16,9 +16,25 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from meeting_fs import run_git, write_message
-from meeting_engine import rr_next_speaker, human_msg_count, aggregate_mode
-from tests.test_meeting_concurrency import setup_env, write_msg
+import threading
+import time
+
+from meeting_fs import (run_git, write_message, list_my_messages,
+                        next_msg_id)
+from meeting_engine import (rr_next_speaker, human_msg_count, aggregate_mode,
+                            agent_loop)
+from tests.test_meeting_concurrency import setup_env, write_msg, types_at_head
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def human_msg(n, body="插话", mode="meeting", summary=None):
+    """标准 human 消息 (path, frontmatter, body)——frontmatter 只此一份。"""
+    fm = {"from": "human", "type": "message", "mode": mode,
+          "seen_at": "", "to": "all"}
+    if summary:
+        fm["summary"] = summary
+    return f"human/{n:04d}.md", fm, body
 
 
 class TestHumanMsgCount(unittest.TestCase):
@@ -30,12 +46,8 @@ class TestHumanMsgCount(unittest.TestCase):
     def test_two_human_messages(self):
         base, bare, wd = setup_env("human-count-2", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
-        write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "meeting",
-                    "seen_at": "", "to": "all"}, "插话一")
-        write_msg(wd["human"], "human/0002.md",
-                   {"from": "human", "type": "message", "mode": "meeting",
-                    "seen_at": "", "to": "all"}, "插话二")
+        write_msg(wd["human"], *human_msg(1, "插话一"))
+        write_msg(wd["human"], *human_msg(2, "插话二"))
         self.assertEqual(human_msg_count(bare), 2)
 
     def test_participant_messages_not_counted(self):
@@ -52,9 +64,7 @@ class TestHumanMsgCount(unittest.TestCase):
         self.addCleanup(shutil.rmtree, base)
         write_msg(wd["human"], "human/README.md",
                   {"from": "human", "type": "message"}, "说明文件")
-        write_msg(wd["human"], "human/0001.md",
-                  {"from": "human", "type": "message", "mode": "meeting",
-                   "seen_at": "", "to": "all"}, "真插话")
+        write_msg(wd["human"], *human_msg(1, "真插话"))
         self.assertEqual(human_msg_count(bare), 1)
 
 
@@ -76,28 +86,20 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def test_human_on_head(self):
         """human 插话在 HEAD → 跳过，找 a 的 pass 的 next。"""
         _, bare, wd = self._rr_setup("rr-human-head")
-        write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "round-robin",
-                    "seen_at": "", "to": "all"}, "人插话")
+        write_msg(wd["human"], *human_msg(1, "人插话"))
         self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "b")
 
     def test_multiple_human(self):
         """连续 2 条 human 插话 → 逐 commit 跳过。"""
         _, bare, wd = self._rr_setup("rr-human-multi")
-        write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "round-robin",
-                    "seen_at": "", "to": "all"}, "插话一")
-        write_msg(wd["human"], "human/0002.md",
-                   {"from": "human", "type": "message", "mode": "round-robin",
-                    "seen_at": "", "to": "all"}, "插话二")
+        write_msg(wd["human"], *human_msg(1, "插话一"))
+        write_msg(wd["human"], *human_msg(2, "插话二"))
         self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "b")
 
     def test_human_between_rounds(self):
         """轮次之间插话：a pass → human → b pass(next=a) → 找 b 的 next。"""
         _, bare, wd = self._rr_setup("rr-human-between")
-        write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "round-robin",
-                    "seen_at": "", "to": "all"}, "插话")
+        write_msg(wd["human"], *human_msg(1, "插话"))
         write_msg(wd["b"], "b/0001.md",
                    {"from": "b", "type": "pass", "mode": "round-robin",
                     "next": "a", "seen_at": "", "to": "all"}, "b pass")
@@ -106,9 +108,7 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def test_human_mode_not_affect_aggregate(self):
         """human 消息不进入聚合判定（mode 仍由参与者决定）。"""
         _, bare, wd = self._rr_setup("rr-human-agg")
-        write_msg(wd["human"], "human/0001.md",
-                  {"from": "human", "type": "message", "mode": "meeting",
-                   "seen_at": "", "to": "all"}, "插话")
+        write_msg(wd["human"], *human_msg(1, "插话"))
         # 参与者最后一条仍是 a 的 pass（round-robin）→ 聚合仍 round-robin
         self.assertEqual(aggregate_mode(bare, ["a", "b"]), "round-robin")
 
@@ -143,9 +143,7 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
         run_git(wd["a"], "add", "--", "a/0001.md", "a/0002.md")
         run_git(wd["a"], "commit", "-m", "discuss: a/0002")
         run_git(wd["a"], "push")
-        write_msg(wd["human"], "human/0001.md",
-                  {"from": "human", "type": "message", "mode": "round-robin",
-                   "seen_at": "", "to": "all"}, "插话")
+        write_msg(wd["human"], *human_msg(1, "插话"))
         # 回退路径：a 的 commit 取最后一个（a/0002）的 next = a
         self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "a")
 
@@ -158,7 +156,7 @@ class TestReservedName(unittest.TestCase):
                  "--dir", os.path.join(tmp, "disc"),
                  "--agents", agents, "--topic", "t"],
                 capture_output=True, text=True,
-                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                cwd=ROOT)
             return r.stdout
 
     def test_human_in_agents(self):
@@ -189,8 +187,7 @@ class TestReservedName(unittest.TestCase):
                 [sys.executable, "start_discussion.py",
                  "--dir", os.path.join(tmp, "disc"), "--spec", spec],
                 capture_output=True, text=True,
-                cwd=os.path.dirname(os.path.dirname(
-                    os.path.abspath(__file__))))
+                cwd=ROOT)
             self.assertIn("保留名", r.stdout)
             self.assertIn("human", r.stdout)
 
@@ -217,9 +214,7 @@ class TestViewer(unittest.TestCase):
         write_msg(wd["a"], "a/0001.md",
                    {"from": "a", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all", "summary": "a 观点"}, "a 正文")
-        write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "meeting",
-                    "seen_at": "", "to": "all", "summary": "人插话"}, "人正文")
+        write_msg(wd["human"], *human_msg(1, "人正文", summary="人插话"))
         mode, lines, _, done = incremental(bare, ["a", "b"], None)
         self.assertEqual(mode, "meeting")
         self.assertEqual(len(lines), 2)
@@ -237,9 +232,7 @@ class TestViewer(unittest.TestCase):
                    {"from": "a", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all"}, "a 正文")
         head1 = run_git(bare, "rev-parse", "HEAD").stdout.strip()
-        write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "meeting",
-                    "seen_at": "", "to": "all"}, "人正文")
+        write_msg(wd["human"], *human_msg(1, "人正文"))
         msgs = new_messages(bare, head1)
         self.assertEqual([p for _, p in msgs], ["human/0001.md"])
         mode, lines, _, _ = incremental(bare, ["a", "b"], head1)
@@ -261,7 +254,6 @@ class TestViewer(unittest.TestCase):
     def test_follow_cursor(self):
         """--follow 游标：增量后写游标，重启从游标继续。"""
         from human_viewer import follow, _read_cursor
-        import threading
         base, bare, wd = self._env("viewer-cursor")
         write_msg(wd["a"], "a/0001.md",
                    {"from": "a", "type": "message", "mode": "meeting",
@@ -296,21 +288,6 @@ class TestViewer(unittest.TestCase):
                          run_git(bare, "rev-parse", "HEAD").stdout.strip())
 
 
-def _types_at_head(bare):
-    """HEAD 树中消息类型分布（含 human）。"""
-    from meeting_fs import is_message_file
-    types = {}
-    r = run_git(bare, "ls-tree", "-r", "--name-only", "HEAD")
-    for f in r.stdout.strip().splitlines():
-        if is_message_file(f):
-            r3 = run_git(bare, "show", f"HEAD:{f}", check=False)
-            for l in r3.stdout.splitlines():
-                if l.startswith("type:"):
-                    t = l.split(":", 1)[1].strip()
-                    types[t] = types.get(t, 0) + 1
-    return types
-
-
 class TestFakeAgentWithHuman(unittest.TestCase):
     """FakeAgent 多进程：human 插话注入（meeting + RR 阶段），讨论仍收敛。
 
@@ -319,7 +296,6 @@ class TestFakeAgentWithHuman(unittest.TestCase):
     """
 
     def test_discussion_converges_with_human_interjections(self):
-        import time as _time
         from tests.test_meeting_concurrency import spawn_agents, wait_all
         base, bare, wd = setup_env("human-e2e", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
@@ -327,20 +303,14 @@ class TestFakeAgentWithHuman(unittest.TestCase):
                                 max_meeting=4, max_rr=5)
         try:
             # meeting 阶段注入（等首启发言落 bare）
-            _time.sleep(5)
-            write_msg(wd["human"], "human/0001.md",
-                       {"from": "human", "type": "message",
-                        "mode": "meeting", "seen_at": "", "to": "all"},
-                       "meeting 阶段插话")
+            time.sleep(5)
+            write_msg(wd["human"], *human_msg(1, "meeting 阶段插话"))
             # 稍后注入第二条（可能已进入 RR 阶段）
-            _time.sleep(8)
-            write_msg(wd["human"], "human/0002.md",
-                       {"from": "human", "type": "message",
-                        "mode": "meeting", "seen_at": "", "to": "all"},
-                       "第二条插话")
+            time.sleep(8)
+            write_msg(wd["human"], *human_msg(2, "第二条插话"))
             all_exit, alive = wait_all(procs, timeout=180)
             self.assertTrue(all_exit, f"进程未退出: {alive}")
-            types = _types_at_head(bare)
+            types = types_at_head(bare)
             self.assertIn("concluded", types,
                           f"讨论未收敛（轮转链被 human 打断?）: {types}")
             # human 消息确实存在且被看到（讨论继续推进到收尾 = 触发正常）
@@ -370,10 +340,6 @@ class TestQuotaIncrement(unittest.TestCase):
           双方冻结 → 无人互响应 → message 数 = 1 → 断言失败
         完全确定无竞态（⑤.2 在触发判断之前；human 先注入使首启即含增量）。
         """
-        import threading
-        import time
-        from meeting_engine import agent_loop
-        from meeting_fs import list_my_messages, next_msg_id, write_message
         base, bare, wd = setup_env("quota-inc", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
 
@@ -391,9 +357,7 @@ class TestQuotaIncrement(unittest.TestCase):
             return True
 
         # human 先注入（h_count=1）——配额增量使各 agent 配额上限 = 2
-        write_msg(wd["human"], "human/0001.md",
-                  {"from": "human", "type": "message", "mode": "meeting",
-                   "seen_at": "", "to": "all"}, "人插话")
+        write_msg(wd["human"], *human_msg(1, "人插话"))
 
         # 2 个 LLM agent 的 loop 全部启动（真实形态）
         threads = []

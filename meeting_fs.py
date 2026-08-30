@@ -85,6 +85,21 @@ def git_show(workdir, commit, path):
 # frontmatter 解析
 # ---------------------------------------------------------------
 
+def _frontmatter_end(content):
+    """frontmatter 块闭合行号（开 `---` + 闭 `---` 完整才返回；否则 None）。
+
+    块边界确认**只此一份**（parse_frontmatter / extract_body 共用）——
+    先边界后解析（review5 A1 根治，用户方法：先确认块边界与完整性再读取）。
+    """
+    if not content.startswith("---"):
+        return None
+    lines = content.splitlines()
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return i
+    return None
+
+
 def parse_frontmatter(content):
     """先确认 frontmatter 块完整（开 `---` + 闭 `---`），再解析字段
     （review5 A1 根治，用户方法：先边界后解析）。
@@ -97,16 +112,10 @@ def parse_frontmatter(content):
     （1-2 字段）→ 调用方 if not fm 判不出"完整 vs 残缺"→ 误当成功
     → serialize None → 原样 commit → 确定性修复丢失（A1 根因）。
     """
-    if not content.startswith("---"):
-        return None
-    lines = content.splitlines()
-    end = None
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            end = i
-            break
+    end = _frontmatter_end(content)
     if end is None:
-        return None          # 有开无闭 → 块不完整 → 不可用
+        return None          # 无 frontmatter 或块不完整 → 不可用
+    lines = content.splitlines()
     fm = {}
     for line in lines[1:end]:
         m = re.match(r"^([a-zA-Z_]+):\s*(.*)$", line)
@@ -116,6 +125,19 @@ def parse_frontmatter(content):
                 val = val[1:-1]   # 对齐 serialize_message 的剥引号（审核#17）
             fm[key] = val
     return fm
+
+
+def extract_body(content):
+    """frontmatter 块之后的正文（块不完整 → None）。
+
+    与 parse_frontmatter 共用 _frontmatter_end（块边界只此一份）。
+    human_viewer 展示用（读 bare 内容，非工作区文件）。
+    """
+    end = _frontmatter_end(content)
+    if end is None:
+        return None
+    lines = content.splitlines()
+    return "\n".join(lines[end + 1:]).strip()
 
 
 def read_message(workdir, path):
@@ -155,17 +177,10 @@ def serialize_message(frontmatter, original_content):
     original_content: 原文件全文
     返回: 新全文（frontmatter 按给定 dict 重写，body 保留）
     """
-    lines = original_content.splitlines()
-    # 找到第一个 --- 和第二个 ---
-    if not lines or lines[0].strip() != "---":
-        return None
-    end = None
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            end = i
-            break
+    end = _frontmatter_end(original_content)
     if end is None:
         return None
+    lines = original_content.splitlines()
     body = "\n".join(lines[end + 1:]).lstrip("\n")
     return "\n".join(_fm_to_lines(frontmatter)) + "\n\n" + body + "\n"
 
@@ -281,4 +296,29 @@ def new_messages_with_meta(workdir, since_ref, me=None):
 def is_message_file(path):
     """判断路径是否为消息文件（作者/NNNN.md）。"""
     return bool(re.match(r"^[a-z]+/\d{4}\.md$", path))
+
+
+def parse_log_nameonly(output):
+    """解析 `git log --name-only --format=%H` 输出 → [(commit, [files])]。
+
+    按 commit 拓扑序（输出顺序）；每个 commit 的文件列表含其变更文件。
+    引擎（rr_next_speaker 回退路径）与 human_viewer（new_messages）共用
+    ——git 输出解析只此一份，避免两处实现漂移。
+    """
+    commits = []
+    cur = None
+    files = []
+    for line in output.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if len(line) == 40 and all(c in "0123456789abcdef" for c in line):
+            if cur is not None:
+                commits.append((cur, files))
+            cur, files = line, []
+        else:
+            files.append(line)
+    if cur is not None:
+        commits.append((cur, files))
+    return commits
 

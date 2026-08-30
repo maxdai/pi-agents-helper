@@ -32,7 +32,7 @@ from meeting_fs import (
     list_my_messages, new_messages_with_meta, next_msg_id,
     read_point, read_message, write_message, commit_message,
     run_git, parse_frontmatter, serialize_message,
-    git_show, is_message_file,
+    git_show, is_message_file, parse_log_nameonly,
 )
 from meeting_core import (
     should_write_af, can_start_rr, validate_and_fix, is_all_last_in,
@@ -210,20 +210,7 @@ def rr_next_speaker(bare, agents):
     # 消息（--skip=1 跳过 HEAD；每组文件仍取最后一个消息文件，对齐①语义）
     r = run_git(bare, "log", "--name-only", "--format=%H", "--skip=1",
                 check=False)
-    cur = None
-    files_cur = []
-    commits = []
-    for line in r.stdout.strip().splitlines():
-        line = line.strip()
-        if re.match(r"^[0-9a-f]{40}$", line):
-            if cur is not None:
-                commits.append((cur, files_cur))
-            cur, files_cur = line, []
-        elif line:
-            files_cur.append(line)
-    if cur is not None:
-        commits.append((cur, files_cur))
-    for commit, fls in commits:
+    for commit, fls in parse_log_nameonly(r.stdout):
         msg_files = [f for f in fls if is_message_file(f)]
         if not msg_files:
             continue
@@ -275,7 +262,8 @@ def human_msg_count(bare):
     """
     r = run_git(bare, "ls-tree", "-r", "--name-only", "HEAD", check=False)
     files = [l.strip() for l in r.stdout.strip().splitlines() if l.strip()]
-    return sum(1 for f in files if re.match(r"^human/\d{4}\.md$", f))
+    return sum(1 for f in files
+               if f.startswith("human/") and is_message_file(f))
 
 
 def _produced(workdir, agent, before):

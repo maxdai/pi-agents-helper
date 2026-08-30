@@ -17,6 +17,9 @@ human 通道的展示进程（docs/pi-helper-design.md §5.2）：纯 bare 只�
 
 --follow 模式：游标持久化 <base>/.viewer-cursor（记录的 ref），重启不丢；
 讨论 done（mode == concluded）→ 打印 result.md 路径后退出。
+
+复用边界：frontmatter 解析/正文提取/消息文件判定/git log 输出解析全部
+来自 meeting_fs（单一实现）；本模块只做 bare 只读组装与展示格式。
 """
 
 import argparse
@@ -25,33 +28,30 @@ import os
 import sys
 import time
 
-from meeting_fs import run_git, git_show, git_head, parse_frontmatter, \
-    is_message_file
-from meeting_engine import aggregate_mode
+from meeting_fs import (run_git, git_show, git_head, is_message_file,
+                        parse_log_nameonly, extract_body, parse_frontmatter)
+from meeting_engine import aggregate_mode, POLL_INTERVAL
 
-POLL_INTERVAL = 2.0
+
+def _protocol(bare):
+    """HEAD:protocol.json → dict（读不到 → {}）。"""
+    r = run_git(bare, "show", "HEAD:protocol.json", check=False)
+    if r.returncode != 0:
+        return {}
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return {}
 
 
 def participants_from_bare(bare):
     """参与者列表（单一事实源 = bare HEAD 的 protocol.json）。"""
-    r = run_git(bare, "show", "HEAD:protocol.json", check=False)
-    if r.returncode != 0:
-        return None
-    try:
-        return json.loads(r.stdout).get("participants", [])
-    except ValueError:
-        return None
+    return _protocol(bare).get("participants") or None
 
 
 def result_path(base, bare):
     """result.md 实际位置（work-<resultWriter>/result.md，与 --wait 一致）。"""
-    r = run_git(bare, "show", "HEAD:protocol.json", check=False)
-    if r.returncode != 0:
-        return ""
-    try:
-        rw = json.loads(r.stdout).get("resultWriter", "")
-    except ValueError:
-        rw = ""
+    rw = _protocol(bare).get("resultWriter", "")
     return os.path.join(base, f"work-{rw}", "result.md") if rw else ""
 
 
@@ -67,33 +67,12 @@ def new_messages(bare, since):
     else:
         r = run_git(bare, "log", "HEAD", "--name-only",
                     "--format=%H", "--reverse", check=False)
-    cur = None
     result = []
-    for line in r.stdout.strip().splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if len(line) == 40 and all(c in "0123456789abcdef" for c in line):
-            cur = line
-            continue
-        if cur and is_message_file(line):
-            result.append((cur, line))
+    for commit, fls in parse_log_nameonly(r.stdout):
+        for f in fls:
+            if is_message_file(f):
+                result.append((commit, f))
     return result
-
-
-def _extract_body(content):
-    """frontmatter 块之后的正文（块不完整 → None）。"""
-    if not content.startswith("---"):
-        return None
-    lines = content.splitlines()
-    end = None
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            end = i
-            break
-    if end is None:
-        return None
-    return "\n".join(lines[end + 1:]).strip()
 
 
 def format_message(path, content):
@@ -101,7 +80,7 @@ def format_message(path, content):
     fm = parse_frontmatter(content)
     if not fm:
         return None
-    body = _extract_body(content) or ""
+    body = extract_body(content) or ""
     header = f"[{path}] {fm.get('from', '?')} ({fm.get('type', '?')})"
     if fm.get("summary"):
         header += f": {fm['summary']}"
@@ -132,18 +111,20 @@ def incremental(bare, agents, since):
     return mode, lines, head, mode == "concluded"
 
 
+def _cursor_path(base):
+    return os.path.join(base, ".viewer-cursor")
+
+
 def _read_cursor(base):
-    path = os.path.join(base, ".viewer-cursor")
     try:
-        with open(path) as f:
+        with open(_cursor_path(base)) as f:
             return f.read().strip() or None
     except OSError:
         return None
 
 
 def _write_cursor(base, ref):
-    path = os.path.join(base, ".viewer-cursor")
-    with open(path, "w") as f:
+    with open(_cursor_path(base), "w") as f:
         f.write(ref + "\n")
 
 
