@@ -294,6 +294,41 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
   阶段 3 skill 中主 pi 的 TUI 即壳（viewer → tool output 展示、
   sayer → tool 插话）——不另做 curses UI
 
+### 5.1.1 tmux 双屏形态（实测验证 2026-08-30，用户拍板纳入）
+
+**零开发的壳形态**：tmux 上下双屏——上屏 `human_viewer --follow`（实时
+展示），下屏 shell（随时执行 `human_sayer` 插话）。实测通过：插话实时上屏、
+agents 响应、状态变化显示、done 自动退出。
+
+```
+┌────────────────────────────────┐
+│ 上屏：human_viewer --follow     │  ← 新消息/状态变化实时展示，done 自动退出
+├────────────────────────────────┤
+│ 下屏：shell                    │  ← 随时 python3 human_sayer.py <base> "文本"
+└────────────────────────────────┘
+```
+
+**主 pi 一键启动 + 用户终端接入**（用户 2026-08-30 定）：
+
+```
+主 pi：start_discussion（创建+启动）→ tmux new-session -d -s discuss-<ts>
+      （上屏 viewer --follow / 下屏 shell）→ 告知用户 attach 命令
+用户：另一终端 tmux attach -t discuss-<ts> → 直接观看/插话（随时 detach）
+主 pi：轮询 --status → done → 通知用户 → kill tmux + --cleanup
+```
+
+关键点：
+- session 常驻：用户 detach 不影响（viewer 持续轮询）
+- 命名唯一（discuss-<时间戳>），pi 告知用户 attach 命令
+- 多终端共享：tmux 多人 attach 同一 session（共享屏幕）
+- 实测注意：split-window 后当前 pane 变为新 pane，tmux 命令需显式带
+  pane 索引（-t session.N）；new-session 直接跑 viewer 偶发退出
+  （不可复现），可靠用法是进 shell 后发送 viewer 命令
+
+**与 skill 的关系**：阶段 3 两种交互形态并存——tmux 形态（用户主动参与，
+直接看屏/输入，不经对话中转）+ 主 pi 代理形态（用户通过对话参与，主 pi
+轮询 viewer + 代执行 sayer）。
+
 ### 5.2 human-viewer（阶段 1）
 
 **定位**：只读观察工具——实时展示讨论进展（agents 的消息 + 状态变化）。
@@ -381,6 +416,7 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
 | 阶段 | 先核心脚本（阶段 1），调试通过后再 skill（阶段 2） | 用户 2026-08-30 |
 | 通道 | human 通道 = viewer（展示）+ sayer（插话）两命令 + 壳可选 | 用户 2026-08-30 |
 | 壳 | 阶段 3 主 pi TUI 即壳；不另做 curses UI | 用户 2026-08-30 |
+| tmux 双屏 | 纳入设计：上 viewer --follow / 下 shell sayer；主 pi 启动 + 用户 attach；阶段 3 与主 pi 代理形态并存 | 用户 2026-08-30 |
 | 输入 | 插话文本支持多行（粘贴场景）；shell 参数/文件通道 | 用户 2026-08-30 |
 | 开发铁律 | 职责边界 / 复杂度匹配 / 设计符合度（每次修改后核验） | 用户 2026-08-09（沿用） |
 
@@ -406,7 +442,7 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
 |---|---|
 | **1** | human-viewer（只读展示：新消息 + 状态变化，增量/--follow/游标）+ rr_next_speaker 修复 + 配额增量 + 保留名校验 + 测试 |
 | **2** | human-sayer（插话：写消息核心 + work-human + flock + commit+push 容错）+ 测试 |
-| **3** | skill 层——SKILL.md、discuss.sh wrapper、npm 包装、主 pi 即壳（viewer 增量轮询展示 + sayer 插话入口） |
+| **3** | skill 层——SKILL.md、discuss.sh wrapper、npm 包装；两种交互形态：**tmux 双屏**（主 pi 启动 + 用户 attach 直接观看/插话）+ **主 pi 代理**（轮询 viewer 增量展示 + sayer 插话入口） |
 
 ## 9. 风险与已知边界
 
