@@ -16,7 +16,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from meeting_fs import run_git
+from meeting_fs import run_git, write_message
 from meeting_engine import rr_next_speaker, human_msg_count, aggregate_mode
 from tests.test_meeting_concurrency import setup_env, write_msg
 
@@ -107,10 +107,47 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
         """human 消息不进入聚合判定（mode 仍由参与者决定）。"""
         _, bare, wd = self._rr_setup("rr-human-agg")
         write_msg(wd["human"], "human/0001.md",
-                   {"from": "human", "type": "message", "mode": "meeting",
-                    "seen_at": "", "to": "all"}, "插话")
+                  {"from": "human", "type": "message", "mode": "meeting",
+                   "seen_at": "", "to": "all"}, "插话")
         # 参与者最后一条仍是 a 的 pass（round-robin）→ 聚合仍 round-robin
         self.assertEqual(aggregate_mode(bare, ["a", "b"]), "round-robin")
+
+    def test_multi_msg_file_same_commit_takes_last(self):
+        """原语义回归（用户 2026-08-30 严格核对）：同 commit 多消息文件
+        取最后一个（msg_files[-1]）——我的首版实现取第一个，不等价。"""
+        base, bare, wd = setup_env("rr-multi-file", ["a", "b"])
+        self.addCleanup(shutil.rmtree, base)
+        # 一个 commit 写两个消息文件（a/0001 next=b、a/0002 next=a）
+        write_message(wd["a"], "a/0001.md",
+                      {"from": "a", "type": "pass", "mode": "round-robin",
+                       "next": "b", "seen_at": "", "to": "all"}, "一")
+        write_message(wd["a"], "a/0002.md",
+                      {"from": "a", "type": "pass", "mode": "round-robin",
+                       "next": "a", "seen_at": "", "to": "all"}, "二")
+        run_git(wd["a"], "add", "--", "a/0001.md", "a/0002.md")
+        run_git(wd["a"], "commit", "-m", "discuss: a/0002")
+        run_git(wd["a"], "push")
+        # 原语义：取最后一个消息文件（a/0002）的 next = a
+        self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "a")
+
+    def test_human_after_multi_msg_commit(self):
+        """human 在 HEAD 时回退路径同样取该 commit 最后一个消息文件。"""
+        base, bare, wd = setup_env("rr-multi-human", ["a", "b"])
+        self.addCleanup(shutil.rmtree, base)
+        write_message(wd["a"], "a/0001.md",
+                      {"from": "a", "type": "pass", "mode": "round-robin",
+                       "next": "b", "seen_at": "", "to": "all"}, "一")
+        write_message(wd["a"], "a/0002.md",
+                      {"from": "a", "type": "pass", "mode": "round-robin",
+                       "next": "a", "seen_at": "", "to": "all"}, "二")
+        run_git(wd["a"], "add", "--", "a/0001.md", "a/0002.md")
+        run_git(wd["a"], "commit", "-m", "discuss: a/0002")
+        run_git(wd["a"], "push")
+        write_msg(wd["human"], "human/0001.md",
+                  {"from": "human", "type": "message", "mode": "round-robin",
+                   "seen_at": "", "to": "all"}, "插话")
+        # 回退路径：a 的 commit 取最后一个（a/0002）的 next = a
+        self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "a")
 
 
 class TestReservedName(unittest.TestCase):

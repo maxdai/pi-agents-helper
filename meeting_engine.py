@@ -183,25 +183,54 @@ def rr_next_speaker(bare, agents):
     push（next 链唯一确定下一位）→ 最后发言者 = 最近的一条参与者消息
     （helper 设计 3.4：human 插话不算发言者，不参与轮转）。
     故"最近的参与者消息"的 next 就是下一位发言人。
-    用 git log（commit 拓扑序），不依赖 _each_agent_messages
-    （跨 agent 目录序号无法比先后）。
 
     human 插话（HEAD = human 消息，无 next）会打断轮转链——逐 commit
     往前找最后一条参与者消息（helper 设计 3.4；否则 next 缺失 →
     所有 agent 的 nxt != agent → RR 死锁，只能等 stall 兑底）。
+
+    **等价性约束**（用户 2026-08-30 严格核对）：非 human 场景必须与
+    原实现完全等价（git log -1 + 文件列表最后一个消息文件 msg_files[-1]
+    ——原语义），仅 human 场景走逐 commit 回退路径。
     """
-    r = run_git(bare, "log", "--name-only", "--format=%H", check=False)
+    # ① HEAD 是参与者消息 → 原实现语义不变（git log -1，取最后一个消息文件）
+    r = run_git(bare, "log", "-1", "--name-only", "--format=%H", check=False)
+    lines = r.stdout.strip().splitlines()
+    files = [l.strip() for l in lines[1:] if l.strip()]
+    msg_files = [f for f in files if is_message_file(f)]
+    if msg_files and msg_files[-1].split("/")[0] in agents:
+        c = git_show(bare, "HEAD", msg_files[-1])
+        if c is None:
+            return None
+        fm = parse_frontmatter(c)
+        if not fm:
+            return None
+        return fm.get("next")
+
+    # ② HEAD 非参与者消息（human 插话）→ 逐 commit 往前找最近的参与者
+    # 消息（--skip=1 跳过 HEAD；每组文件仍取最后一个消息文件，对齐①语义）
+    r = run_git(bare, "log", "--name-only", "--format=%H", "--skip=1",
+                check=False)
     cur = None
+    files_cur = []
+    commits = []
     for line in r.stdout.strip().splitlines():
         line = line.strip()
         if re.match(r"^[0-9a-f]{40}$", line):
-            cur = line          # commit 行（拓扑序最新在前）
+            if cur is not None:
+                commits.append((cur, files_cur))
+            cur, files_cur = line, []
+        elif line:
+            files_cur.append(line)
+    if cur is not None:
+        commits.append((cur, files_cur))
+    for commit, fls in commits:
+        msg_files = [f for f in fls if is_message_file(f)]
+        if not msg_files:
             continue
-        if not line or not is_message_file(line):
-            continue
-        if line.split("/")[0] not in agents:
-            continue            # 非参与者（human 插话）→ 继续往前找
-        c = git_show(bare, cur, line)
+        last = msg_files[-1]
+        if last.split("/")[0] not in agents:
+            continue        # 非参与者（human 插话）→ 继续往前找
+        c = git_show(bare, commit, last)
         if c is None:
             return None
         fm = parse_frontmatter(c)
