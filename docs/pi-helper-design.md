@@ -312,7 +312,9 @@ agents 响应、状态变化显示、done 自动退出。
 
 ```
 主 pi：start_discussion（创建+启动）→ tmux new-session -d -s discuss-<ts>
-      （上屏 viewer --follow / 下屏 shell）→ 告知用户 attach 命令
+      （上屏 viewer --follow / 下屏 shell，下屏 -l 4 固定 4 行——
+      插话输入只需提示符+输入行+反馈，空间留给上屏讨论）
+      → 告知用户 attach 命令
 用户：另一终端 tmux attach -t discuss-<ts> → 直接观看/插话（随时 detach）
 主 pi：轮询 --status → done → 通知用户 → kill tmux + --cleanup
 ```
