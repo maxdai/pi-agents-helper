@@ -302,12 +302,13 @@ class TestFakeAgentWithHuman(unittest.TestCase):
         procs, _ = spawn_agents(wd, ["a", "b"], {}, {},
                                 max_meeting=4, max_rr=5)
         try:
-            # meeting 阶段注入（等首启发言落 bare）
+            # meeting 阶段注入（真实 sayer 写路径，等首启发言落 bare）
             time.sleep(5)
-            write_msg(wd["human"], *human_msg(1, "meeting 阶段插话"))
+            from human_sayer import say
+            say(wd["human"], "meeting 阶段插话")
             # 稍后注入第二条（可能已进入 RR 阶段）
             time.sleep(8)
-            write_msg(wd["human"], *human_msg(2, "第二条插话"))
+            say(wd["human"], "第二条插话")
             all_exit, alive = wait_all(procs, timeout=180)
             self.assertTrue(all_exit, f"进程未退出: {alive}")
             types = types_at_head(bare)
@@ -393,6 +394,120 @@ class TestQuotaIncrement(unittest.TestCase):
                     f"（quota 未含 h_count），应能写第 2 条 message")
         finally:
             pass  # daemon 线程随测试进程退出
+
+
+class TestSayer(unittest.TestCase):
+    """human-sayer 写消息路径（helper 设计 §5.3）。
+
+    装置：setup_env 已固定创建 work-human（阶段 1 修正，human 另算）。
+    """
+
+    def _env(self, name):
+        base, bare, wd = setup_env(name, ["a", "b"])
+        self.addCleanup(shutil.rmtree, base)
+        return base, bare, wd
+
+    def test_say_writes_full_frontmatter(self):
+        """frontmatter 确定性补全：from/type/mode/seen_at/to/summary。"""
+        from human_sayer import say
+        from meeting_fs import git_show, parse_frontmatter
+        base, bare, wd = self._env("sayer-basic")
+        write_msg(wd["a"], "a/0001.md",
+                  {"from": "a", "type": "message", "mode": "meeting",
+                   "seen_at": "", "to": "all"}, "a 发言")
+        a_head = run_git(bare, "log", "-1", "--format=%H", "--",
+                         "a/0001.md").stdout.strip()
+        path, summ = say(wd["human"], "第一行摘要\n第二行正文")
+        self.assertEqual(path, "human/0001.md")
+        self.assertEqual(summ, "第一行摘要")
+        fm = parse_frontmatter(git_show(bare, "HEAD", path))
+        self.assertEqual(fm.get("from"), "human")
+        self.assertEqual(fm.get("type"), "message")
+        self.assertEqual(fm.get("mode"), "meeting")
+        self.assertEqual(fm.get("seen_at"), a_head)   # 写入时 HEAD
+        self.assertEqual(fm.get("to"), "all")
+        self.assertEqual(fm.get("summary"), "第一行摘要")
+
+    def test_say_sequence(self):
+        """两次插话 → 序号递增（max+1，对齐 next_msg_id 语义）。"""
+        from human_sayer import say
+        base, bare, wd = self._env("sayer-seq")
+        p1, _ = say(wd["human"], "一")
+        p2, _ = say(wd["human"], "二")
+        self.assertEqual(p1, "human/0001.md")
+        self.assertEqual(p2, "human/0002.md")
+
+    def test_say_multiline_body(self):
+        """多行正文完整保留（复制粘贴场景）。"""
+        from human_sayer import say
+        from meeting_fs import git_show
+        base, bare, wd = self._env("sayer-multi")
+        body = "第一行\n第二行\n\n第三段"
+        path, summ = say(wd["human"], body)
+        self.assertEqual(summ, "第一行")
+        content = git_show(bare, "HEAD", path)
+        self.assertIn("第二行", content)
+        self.assertIn("第三段", content)
+
+    def test_summary_truncated(self):
+        """summary 首行截取（SUMMARY_MAX=60）。"""
+        from human_sayer import say
+        base, bare, wd = self._env("sayer-trunc")
+        _, summ = say(wd["human"], "x" * 100 + "\n正文")
+        self.assertEqual(len(summ), 60)
+
+    def test_empty_text_rejected(self):
+        """空插话 → 明确报错（CLI）。"""
+        base, bare, wd = self._env("sayer-empty")
+        r = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "human_sayer.py"),
+             base, "   "], capture_output=True, text=True)
+        self.assertIn("错误", r.stdout + r.stderr)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_nonexistent_discussion_rejected(self):
+        """讨论不存在 → 明确报错（CLI）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            r = subprocess.run(
+                [sys.executable, os.path.join(ROOT, "human_sayer.py"),
+                 os.path.join(tmp, "nope"), "插话"],
+                capture_output=True, text=True)
+        self.assertIn("错误", r.stdout + r.stderr)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_concurrent_sayers_no_sequence_collision(self):
+        """两个 sayer 并发（独立进程）→ flock 串行 + 序号不冲突。"""
+        base, bare, wd = self._env("sayer-conc")
+        procs = [subprocess.Popen(
+            [sys.executable, os.path.join(ROOT, "human_sayer.py"),
+             base, f"并发插话{i}"],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            for i in range(2)]
+        outs = [p.communicate()[0] for p in procs]
+        self.assertTrue(all("已发送 human/000" in o for o in outs), outs)
+        # 两条消息都存在且序号连续（0001/0002 各一条）
+        from meeting_fs import is_message_file
+        r = run_git(bare, "ls-tree", "-r", "--name-only", "HEAD")
+        human_msgs = sorted(f for f in r.stdout.splitlines()
+                            if is_message_file(f) and f.startswith("human/"))
+        self.assertEqual(human_msgs, ["human/0001.md", "human/0002.md"])
+
+    def test_setup_creates_work_human(self):
+        """真实 setup 创建 work-human（clone + git 身份）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            disc = os.path.join(tmp, "disc")
+            r = subprocess.run(
+                [sys.executable, "start_discussion.py",
+                 "--dir", disc, "--agents", "a,b", "--topic", "t"],
+                capture_output=True, text=True, cwd=ROOT)
+            wh = os.path.join(disc, "work-human")
+            self.assertTrue(os.path.isdir(wh), r.stdout)
+            self.assertTrue(os.path.isdir(os.path.join(wh, "human")))
+            # clone 自带 protocol.json（参与者/配额单一事实源）
+            self.assertTrue(os.path.exists(os.path.join(wh, "protocol.json")))
+            # git 身份已配置（提交需要）
+            name = run_git(wh, "config", "user.name").stdout.strip()
+            self.assertTrue(name)
 
 
 if __name__ == "__main__":
