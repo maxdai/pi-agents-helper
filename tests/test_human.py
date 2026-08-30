@@ -323,70 +323,73 @@ class TestQuotaIncrement(unittest.TestCase):
     """
 
     def test_quota_increment_lets_agent_respond(self):
+        """配额增量公式的行为验证（helper 设计 §4.1）。
+
+        真实讨论形态：2 个 LLM agents（a/b）+ human 通道，全部确定性。
+        max_meeting=1 + human/0001 先注入（h_count=1 → 配额上限 2）：
+        - 增量生效：各 agent 首启 1 条后不冻结（1 < 2）→ 响应对方/互触发
+          各写第 2 条 → 配额尽 → 冻结 → af → RR → 完整收敛
+        - 增量失效：各 agent 首启 1 条后 ⑤.2 立即冻结（1 >= 1）→
+          双方冻结 → 无人互响应 → message 数 = 1 → 断言失败
+        完全确定无竞态（⑤.2 在触发判断之前；human 先注入使首启即含增量）。
+        """
         import threading
         import time
         from meeting_engine import agent_loop
         from meeting_fs import list_my_messages, next_msg_id, write_message
         base, bare, wd = setup_env("quota-inc", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
-        # b 的角色：**不活跃参与者**（存在但 last=None，不跑 loop）——
-        # 防止单 agent 环境 others_frozen 空集全真（all([])=True →
-        # 无触发时立即确定性 freezing，测试目标被旁路）。
-        # human 消息走独立 work-human 通道（wd["human"]），不占名额。
 
         def responder(workdir, agent, head, meta, is_first, rr_turn, retry,
                       finalizing=False, finalize_reason=None):
             mid = next_msg_id(workdir, agent)
-            write_message(workdir, f"{agent}/{mid}.md",
-                          {"type": "message", "summary": "测试响应"},
-                          "正文")
+            if rr_turn:
+                write_message(workdir, f"{agent}/{mid}.md",
+                              {"type": "pass", "summary": "pass"},
+                              "无异议")
+            else:
+                write_message(workdir, f"{agent}/{mid}.md",
+                              {"type": "message", "summary": "测试响应"},
+                              "正文")
             return True
 
-        # 关键时序（三次修正沉淀，调试实证：首启分支 continue 后下一轮
-        # 循环**立即**执行无 sleep——⑤.2 在首启 commit 后 ~50ms 即判定，
-        # poll_interval 无法扩大此窗口；human 后注入必然赶不上 → 已冻结
-        # 是正确语义。正确序列：
-        # 1. human/0001 先注入（h_count=1 → quota=2）
-        # 2. a 首启：meta 已含 human（首启响应即回应），seen_at 推进
-        # 3. a 下一轮 ⑤.2：1 >= 2 false → 不冻结（公式失效则 1>=1 → 冻结）
-        # 4. 注入 human/0002（h_count=2 → quota=3）→ a 被触发 → 响应第 2 条
-        # 区分力：公式失效 → 步骤 3 冻结 → 步骤 4 触发被发言锁挡住 →
-        # 永远只有 1 条 message → 超时失败。完全确定，无竞态。
+        # human 先注入（h_count=1）——配额增量使各 agent 配额上限 = 2
         write_msg(wd["human"], "human/0001.md",
                   {"from": "human", "type": "message", "mode": "meeting",
-                   "seen_at": "", "to": "all"}, "人插话一")
+                   "seen_at": "", "to": "all"}, "人插话")
 
-        t = threading.Thread(
-            target=agent_loop,
-            args=(wd["a"], "a", responder),
-            kwargs={"max_meeting": 1, "max_rr": 5, "poll_interval": 1.0},
-            daemon=True)
-        t.start()
+        # 2 个 LLM agent 的 loop 全部启动（真实形态）
+        threads = []
+        for ag in ("a", "b"):
+            t = threading.Thread(
+                target=agent_loop,
+                args=(wd[ag], ag, responder),
+                kwargs={"max_meeting": 1, "max_rr": 5,
+                        "poll_interval": 0.1},
+                daemon=True)
+            t.start()
+            threads.append(t)
         try:
-            # 等首启完成（a 有 1 条 message 落 bare）
-            deadline = time.time() + 30
+            # 等完整收敛（concluded）或超时
+            deadline = time.time() + 90
+            from meeting_engine import aggregate_mode
             while time.time() < deadline:
-                if len(list_my_messages(wd["a"], "a")) >= 1:
+                if aggregate_mode(bare, ["a", "b"]) == "concluded":
                     break
-                time.sleep(0.2)
-            # 第二条 human：触发 a 响应（quota=3，允许第 2 条 message）
-            write_msg(wd["human"], "human/0002.md",
-                      {"from": "human", "type": "message", "mode": "meeting",
-                       "seen_at": "", "to": "all"}, "人插话二")
-            # 等 a 响应（message 数 == 2）
-            deadline = time.time() + 30
-            while time.time() < deadline:
-                msgs = [fm for fm in list_my_messages(wd["a"], "a")
+                time.sleep(0.5)
+            # 断言 1：讨论收敛（完整链路走通）
+            self.assertEqual(
+                aggregate_mode(bare, ["a", "b"]), "concluded",
+                "讨论未收敛（配额增量失效会导致双方提前冻结但无 af 级联?）")
+            # 断言 2：各 agent 的 message 数 = 2（首启 + 互响应）——
+            # 配额增量允许的响应；增量失效则首启后即冻结，message = 1
+            for ag in ("a", "b"):
+                msgs = [fm for fm in list_my_messages(wd[ag], ag)
                         if fm.get("type") == "message"]
-                if len(msgs) >= 2:
-                    break
-                time.sleep(0.2)
-            msgs = [fm for fm in list_my_messages(wd["a"], "a")
-                    if fm.get("type") == "message"]
-            self.assertGreaterEqual(
-                len(msgs), 2,
-                "配额增量未生效：a 首启 1 条后即被冻结（quota 未含 h_count），"
-                "human/0002 触发被发言锁挡住（应能响应写第 2 条 message）")
+                self.assertGreaterEqual(
+                    len(msgs), 2,
+                    f"配额增量未生效：{ag} 首启 1 条后即被冻结"
+                    f"（quota 未含 h_count），应能写第 2 条 message")
         finally:
             pass  # daemon 线程随测试进程退出
 
