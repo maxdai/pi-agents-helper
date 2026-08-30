@@ -176,11 +176,23 @@ def serialize_message(frontmatter, original_content):
 
     original_content: 原文件全文
     返回: 新全文（frontmatter 按给定 dict 重写，body 保留）
+
+    边界语义与 parse_frontmatter **不同**（刻意分离，用户 2026-08-30）：
+    原实现用 `lines[0].strip() != "---"`（允许前导空格），_frontmatter_end
+    是 `startswith`（严格）——统一会改变 serialize_message 的行为（核心
+    写路径，commit_new_files 用），保持各自原语义。
     """
-    end = _frontmatter_end(original_content)
+    lines = original_content.splitlines()
+    # 找到第一个 --- 和第二个 ---
+    if not lines or lines[0].strip() != "---":
+        return None
+    end = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end = i
+            break
     if end is None:
         return None
-    lines = original_content.splitlines()
     body = "\n".join(lines[end + 1:]).lstrip("\n")
     return "\n".join(_fm_to_lines(frontmatter)) + "\n\n" + body + "\n"
 
