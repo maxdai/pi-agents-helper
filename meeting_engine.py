@@ -177,27 +177,38 @@ def aggregate_mode(bare, agents):
 
 
 def rr_next_speaker(bare, agents):
-    """RR 阶段轮到谁 = bare HEAD 消息的 next。
+    """RR 阶段轮到谁 = 最近的参与者消息的 next。
 
     RR 串行不变量（设计 11.8）：RR 阶段同一时刻只有一个 agent 写 +
-    push（next 链唯一确定下一位）→ 最后 push 的 = 最后发言者 = bare
-    HEAD 的提交者。故 bare HEAD 消息的 next 就是下一位发言人。
-    用 git log -1（commit 拓扑序最新），不依赖 _each_agent_messages
+    push（next 链唯一确定下一位）→ 最后发言者 = 最近的一条参与者消息
+    （helper 设计 3.4：human 插话不算发言者，不参与轮转）。
+    故"最近的参与者消息"的 next 就是下一位发言人。
+    用 git log（commit 拓扑序），不依赖 _each_agent_messages
     （跨 agent 目录序号无法比先后）。
+
+    human 插话（HEAD = human 消息，无 next）会打断轮转链——逐 commit
+    往前找最后一条参与者消息（helper 设计 3.4；否则 next 缺失 →
+    所有 agent 的 nxt != agent → RR 死锁，只能等 stall 兑底）。
     """
-    r = run_git(bare, "log", "-1", "--name-only", "--format=%H", check=False)
-    lines = r.stdout.strip().splitlines()
-    files = [l.strip() for l in lines[1:] if l.strip()]
-    msg_files = [f for f in files if is_message_file(f)]
-    if not msg_files:
-        return None
-    c = git_show(bare, "HEAD", msg_files[-1])
-    if c is None:
-        return None
-    fm = parse_frontmatter(c)
-    if not fm:
-        return None
-    return fm.get("next")
+    r = run_git(bare, "log", "--name-only", "--format=%H", check=False)
+    cur = None
+    for line in r.stdout.strip().splitlines():
+        line = line.strip()
+        if re.match(r"^[0-9a-f]{40}$", line):
+            cur = line          # commit 行（拓扑序最新在前）
+            continue
+        if not line or not is_message_file(line):
+            continue
+        if line.split("/")[0] not in agents:
+            continue            # 非参与者（human 插话）→ 继续往前找
+        c = git_show(bare, cur, line)
+        if c is None:
+            return None
+        fm = parse_frontmatter(c)
+        if not fm:
+            return None
+        return fm.get("next")
+    return None
 
 
 def rr_active_count(messages, agents):
@@ -223,6 +234,19 @@ def _meeting_speak_count(messages, agent):
     """
     return sum(1 for fm in messages.get(agent, [])
                if fm.get("mode") == "meeting" and fm.get("type") == "message")
+
+
+def human_msg_count(bare):
+    """bare 中 human 插话数（配额增量，helper 设计 §4）。
+
+    human 消息 = human/ 目录下的消息文件（human 不在 participants）。
+    从共享事实（bare 树）推导——无状态传递、崩溃安全。
+    用途：meeting 配额上限 = max_meeting + human_msg_count（human 每
+    发言一次所有 agent 配额 +1，抵消响应消耗——helper 设计 4.1）。
+    """
+    r = run_git(bare, "ls-tree", "-r", "--name-only", "HEAD", check=False)
+    files = [l.strip() for l in r.stdout.strip().splitlines() if l.strip()]
+    return sum(1 for f in files if re.match(r"^human/\d{4}\.md$", f))
 
 
 def _produced(workdir, agent, before):
@@ -672,9 +696,14 @@ def agent_loop(workdir, agent, responder, max_meeting=10, max_rr=7,
             # 已冻结守卫：配额尽者写第一条 freezing 后不再重复写（否则每轮
             # 重写 freezing，消息膨胀 + push 冲突）——复用 others_frozen 分支
             # 的守卫模式。
-            if (_meeting_speak_count(messages, agent) >= max_meeting
+            # human 配额增量（helper 设计 §4）：上限 = max_meeting +
+            # human_msg_count（human 每发言一次所有 agent 配额 +1，
+            # 抵消响应消耗——不加快配额耗尽）。
+            quota = max_meeting + human_msg_count(bare)
+            if (_meeting_speak_count(messages, agent) >= quota
                     and all_last.get(agent) != "freezing"):
-                log(agent, f"meeting 配额耗尽（{max_meeting} 轮）——确定性 freezing")
+                log(agent, f"meeting 配额耗尽（{quota} 轮，含 human 增量"
+                           f"{quota - max_meeting}）——确定性 freezing")
                 write_protocol_signal(workdir, agent, "freezing", "meeting")
                 continue
 

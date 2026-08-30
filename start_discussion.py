@@ -699,6 +699,11 @@ def main():
         if bad:
             print(f"错误: agent 名必须纯小写字母（[a-z]+）：{bad}")
             return
+        # human 保留名（helper 设计 §2.1）：human 是插话通道，不是参与者——
+        # 混入 participants 会被当成普通 agent 生成 loop 进程 + 进聚合判定
+        if "human" in participants:
+            print("错误: 'human' 是保留名（human 插话通道），不可作为参与者")
+            return
         # resultWriter 必须 ∈ participants（spec 推断或 CLI 的 participants）
         if args.result_writer and args.result_writer not in participants:
             print(f"错误: resultWriter {args.result_writer} 不在参与者 {participants} 中")
