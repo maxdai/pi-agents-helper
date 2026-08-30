@@ -72,7 +72,6 @@ def setup_env(test_dir, agents):
     wh = os.path.join(base, "work-human")
     run_git(base, "clone", bare, wh)
     _ident(wh)
-    run_git(wh, "pull", "--rebase", check=False)
     work_dirs["human"] = wh
 
     return base, bare, work_dirs
