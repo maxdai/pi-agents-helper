@@ -25,7 +25,13 @@ SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 
 
 def setup_env(test_dir, agents):
-    """创建 bare + work-* clones + 初始提交。返回 (bare_dir, work_dirs)。"""
+    """创建 bare + work-* clones + 初始提交。返回 (bare_dir, work_dirs)。
+
+    work_dirs 含固定 `human` 键 = work-human（helper 设计 §2.1：human 是
+    附加的特殊 agent，另算，不占参与者名额）——human 消息一律从它写入
+    （对齐阶段 2 sayer 的生产提交通道；借用参与者 work 写 human 消息是
+    语义混淆，用户 2026-08-30 纠正）。
+    """
     base = os.path.join(BASE, test_dir)
     if os.path.exists(base):
         shutil.rmtree(base)
@@ -61,6 +67,13 @@ def setup_env(test_dir, agents):
             # 后续 agent：clone 已含 setup（从 bare 继承），pull 同步即可
             run_git(w, "pull", "--rebase")
         work_dirs[a] = w
+
+    # work-human：固定存在的提交通道（不占参与者名额，不跑 loop）
+    wh = os.path.join(base, "work-human")
+    run_git(base, "clone", bare, wh)
+    _ident(wh)
+    run_git(wh, "pull", "--rebase", check=False)
+    work_dirs["human"] = wh
 
     return base, bare, work_dirs
 

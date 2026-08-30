@@ -30,10 +30,10 @@ class TestHumanMsgCount(unittest.TestCase):
     def test_two_human_messages(self):
         base, bare, wd = setup_env("human-count-2", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all"}, "插话一")
-        write_msg(wd["a"], "human/0002.md",
+        write_msg(wd["human"], "human/0002.md",
                    {"from": "human", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all"}, "插话二")
         self.assertEqual(human_msg_count(bare), 2)
@@ -50,9 +50,9 @@ class TestHumanMsgCount(unittest.TestCase):
         """human/ 下非 4 位数字 md（README 等）不计入。"""
         base, bare, wd = setup_env("human-count-junk", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
-        write_msg(wd["a"], "human/README.md",
+        write_msg(wd["human"], "human/README.md",
                   {"from": "human", "type": "message"}, "说明文件")
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                   {"from": "human", "type": "message", "mode": "meeting",
                    "seen_at": "", "to": "all"}, "真插话")
         self.assertEqual(human_msg_count(bare), 1)
@@ -76,7 +76,7 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def test_human_on_head(self):
         """human 插话在 HEAD → 跳过，找 a 的 pass 的 next。"""
         _, bare, wd = self._rr_setup("rr-human-head")
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "round-robin",
                     "seen_at": "", "to": "all"}, "人插话")
         self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "b")
@@ -84,10 +84,10 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def test_multiple_human(self):
         """连续 2 条 human 插话 → 逐 commit 跳过。"""
         _, bare, wd = self._rr_setup("rr-human-multi")
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "round-robin",
                     "seen_at": "", "to": "all"}, "插话一")
-        write_msg(wd["a"], "human/0002.md",
+        write_msg(wd["human"], "human/0002.md",
                    {"from": "human", "type": "message", "mode": "round-robin",
                     "seen_at": "", "to": "all"}, "插话二")
         self.assertEqual(rr_next_speaker(bare, ["a", "b"]), "b")
@@ -95,7 +95,7 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def test_human_between_rounds(self):
         """轮次之间插话：a pass → human → b pass(next=a) → 找 b 的 next。"""
         _, bare, wd = self._rr_setup("rr-human-between")
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "round-robin",
                     "seen_at": "", "to": "all"}, "插话")
         write_msg(wd["b"], "b/0001.md",
@@ -106,7 +106,7 @@ class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def test_human_mode_not_affect_aggregate(self):
         """human 消息不进入聚合判定（mode 仍由参与者决定）。"""
         _, bare, wd = self._rr_setup("rr-human-agg")
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all"}, "插话")
         # 参与者最后一条仍是 a 的 pass（round-robin）→ 聚合仍 round-robin
@@ -180,7 +180,7 @@ class TestViewer(unittest.TestCase):
         write_msg(wd["a"], "a/0001.md",
                    {"from": "a", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all", "summary": "a 观点"}, "a 正文")
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all", "summary": "人插话"}, "人正文")
         mode, lines, _, done = incremental(bare, ["a", "b"], None)
@@ -200,7 +200,7 @@ class TestViewer(unittest.TestCase):
                    {"from": "a", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all"}, "a 正文")
         head1 = run_git(bare, "rev-parse", "HEAD").stdout.strip()
-        write_msg(wd["a"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                    {"from": "human", "type": "message", "mode": "meeting",
                     "seen_at": "", "to": "all"}, "人正文")
         msgs = new_messages(bare, head1)
@@ -291,13 +291,13 @@ class TestFakeAgentWithHuman(unittest.TestCase):
         try:
             # meeting 阶段注入（等首启发言落 bare）
             _time.sleep(5)
-            write_msg(wd["a"], "human/0001.md",
+            write_msg(wd["human"], "human/0001.md",
                        {"from": "human", "type": "message",
                         "mode": "meeting", "seen_at": "", "to": "all"},
                        "meeting 阶段插话")
             # 稍后注入第二条（可能已进入 RR 阶段）
             _time.sleep(8)
-            write_msg(wd["a"], "human/0002.md",
+            write_msg(wd["human"], "human/0002.md",
                        {"from": "human", "type": "message",
                         "mode": "meeting", "seen_at": "", "to": "all"},
                        "第二条插话")
@@ -329,6 +329,10 @@ class TestQuotaIncrement(unittest.TestCase):
         from meeting_fs import list_my_messages, next_msg_id, write_message
         base, bare, wd = setup_env("quota-inc", ["a", "b"])
         self.addCleanup(shutil.rmtree, base)
+        # b 的角色：**不活跃参与者**（存在但 last=None，不跑 loop）——
+        # 防止单 agent 环境 others_frozen 空集全真（all([])=True →
+        # 无触发时立即确定性 freezing，测试目标被旁路）。
+        # human 消息走独立 work-human 通道（wd["human"]），不占名额。
 
         def responder(workdir, agent, head, meta, is_first, rr_turn, retry,
                       finalizing=False, finalize_reason=None):
@@ -348,7 +352,7 @@ class TestQuotaIncrement(unittest.TestCase):
         # 4. 注入 human/0002（h_count=2 → quota=3）→ a 被触发 → 响应第 2 条
         # 区分力：公式失效 → 步骤 3 冻结 → 步骤 4 触发被发言锁挡住 →
         # 永远只有 1 条 message → 超时失败。完全确定，无竞态。
-        write_msg(wd["b"], "human/0001.md",
+        write_msg(wd["human"], "human/0001.md",
                   {"from": "human", "type": "message", "mode": "meeting",
                    "seen_at": "", "to": "all"}, "人插话一")
 
@@ -366,7 +370,7 @@ class TestQuotaIncrement(unittest.TestCase):
                     break
                 time.sleep(0.2)
             # 第二条 human：触发 a 响应（quota=3，允许第 2 条 message）
-            write_msg(wd["b"], "human/0002.md",
+            write_msg(wd["human"], "human/0002.md",
                       {"from": "human", "type": "message", "mode": "meeting",
                        "seen_at": "", "to": "all"}, "人插话二")
             # 等 a 响应（message 数 == 2）
