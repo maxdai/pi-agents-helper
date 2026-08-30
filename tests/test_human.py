@@ -46,6 +46,17 @@ class TestHumanMsgCount(unittest.TestCase):
                     "seen_at": "", "to": "all"}, "a 发言")
         self.assertEqual(human_msg_count(bare), 0)
 
+    def test_non_message_files_not_counted(self):
+        """human/ 下非 4 位数字 md（README 等）不计入。"""
+        base, bare, wd = setup_env("human-count-junk", ["a", "b"])
+        self.addCleanup(shutil.rmtree, base)
+        write_msg(wd["a"], "human/README.md",
+                  {"from": "human", "type": "message"}, "说明文件")
+        write_msg(wd["a"], "human/0001.md",
+                  {"from": "human", "type": "message", "mode": "meeting",
+                   "seen_at": "", "to": "all"}, "真插话")
+        self.assertEqual(human_msg_count(bare), 1)
+
 
 class TestRRNextSpeakerSkipHuman(unittest.TestCase):
     def _rr_setup(self, name):
@@ -126,6 +137,25 @@ class TestReservedName(unittest.TestCase):
         # 正常参与者不报保留名错误（后续可能报 topic/环境错误，但不含保留名）
         out = self._cli("a,b")
         self.assertNotIn("保留名", out)
+
+    def test_human_in_spec_agents(self):
+        """spec/agents/ 推断含 human → 同样报错（两个入口都拦）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            spec = os.path.join(tmp, "spec")
+            os.makedirs(os.path.join(spec, "agents"))
+            with open(os.path.join(spec, "question.md"), "w") as f:
+                f.write("# 用途注释（首行跳过）\n# 讨论主题\n")
+            for name in ("a", "human"):
+                with open(os.path.join(spec, "agents", f"{name}.md"), "w") as f:
+                    f.write(f"{name} 定义\n")
+            r = subprocess.run(
+                [sys.executable, "start_discussion.py",
+                 "--dir", os.path.join(tmp, "disc"), "--spec", spec],
+                capture_output=True, text=True,
+                cwd=os.path.dirname(os.path.dirname(
+                    os.path.abspath(__file__))))
+            self.assertIn("保留名", r.stdout)
+            self.assertIn("human", r.stdout)
 
 
 class TestViewer(unittest.TestCase):
@@ -282,6 +312,79 @@ class TestFakeAgentWithHuman(unittest.TestCase):
             for p in procs.values():
                 if p.poll() is None:
                     p.terminate()
+
+
+class TestQuotaIncrement(unittest.TestCase):
+    """配额增量公式的行为验证（helper 设计 §4.1）。
+
+    max_meeting=1 + human 插话（h_count=1）→ 配额上限 1+1=2：
+    agent 首启 1 条 message 后不被冻结，能响应 human 写第 2 条。
+    若公式未生效（quota=1）→ 首启后 ⑤.2 即冻结 → 无法响应 → 超时失败。
+    """
+
+    def test_quota_increment_lets_agent_respond(self):
+        import threading
+        import time
+        from meeting_engine import agent_loop
+        from meeting_fs import list_my_messages, next_msg_id, write_message
+        base, bare, wd = setup_env("quota-inc", ["a", "b"])
+        self.addCleanup(shutil.rmtree, base)
+
+        def responder(workdir, agent, head, meta, is_first, rr_turn, retry,
+                      finalizing=False, finalize_reason=None):
+            mid = next_msg_id(workdir, agent)
+            write_message(workdir, f"{agent}/{mid}.md",
+                          {"type": "message", "summary": "测试响应"},
+                          "正文")
+            return True
+
+        # 关键时序（三次修正沉淀，调试实证：首启分支 continue 后下一轮
+        # 循环**立即**执行无 sleep——⑤.2 在首启 commit 后 ~50ms 即判定，
+        # poll_interval 无法扩大此窗口；human 后注入必然赶不上 → 已冻结
+        # 是正确语义。正确序列：
+        # 1. human/0001 先注入（h_count=1 → quota=2）
+        # 2. a 首启：meta 已含 human（首启响应即回应），seen_at 推进
+        # 3. a 下一轮 ⑤.2：1 >= 2 false → 不冻结（公式失效则 1>=1 → 冻结）
+        # 4. 注入 human/0002（h_count=2 → quota=3）→ a 被触发 → 响应第 2 条
+        # 区分力：公式失效 → 步骤 3 冻结 → 步骤 4 触发被发言锁挡住 →
+        # 永远只有 1 条 message → 超时失败。完全确定，无竞态。
+        write_msg(wd["b"], "human/0001.md",
+                  {"from": "human", "type": "message", "mode": "meeting",
+                   "seen_at": "", "to": "all"}, "人插话一")
+
+        t = threading.Thread(
+            target=agent_loop,
+            args=(wd["a"], "a", responder),
+            kwargs={"max_meeting": 1, "max_rr": 5, "poll_interval": 1.0},
+            daemon=True)
+        t.start()
+        try:
+            # 等首启完成（a 有 1 条 message 落 bare）
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                if len(list_my_messages(wd["a"], "a")) >= 1:
+                    break
+                time.sleep(0.2)
+            # 第二条 human：触发 a 响应（quota=3，允许第 2 条 message）
+            write_msg(wd["b"], "human/0002.md",
+                      {"from": "human", "type": "message", "mode": "meeting",
+                       "seen_at": "", "to": "all"}, "人插话二")
+            # 等 a 响应（message 数 == 2）
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                msgs = [fm for fm in list_my_messages(wd["a"], "a")
+                        if fm.get("type") == "message"]
+                if len(msgs) >= 2:
+                    break
+                time.sleep(0.2)
+            msgs = [fm for fm in list_my_messages(wd["a"], "a")
+                    if fm.get("type") == "message"]
+            self.assertGreaterEqual(
+                len(msgs), 2,
+                "配额增量未生效：a 首启 1 条后即被冻结（quota 未含 h_count），"
+                "human/0002 触发被发言锁挡住（应能响应写第 2 条 message）")
+        finally:
+            pass  # daemon 线程随测试进程退出
 
 
 if __name__ == "__main__":
