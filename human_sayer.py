@@ -73,11 +73,43 @@ def say(workdir, body):
     return path, summ
 
 
+def interactive(workdir):
+    """交互模式：逐行累积，空行提交（粘贴多行/打字统一语义）。
+
+    tmux 下屏用法（实测 2026-08-30 用户反馈：shell 敲命令不直观）：
+      python3 human_sayer.py <base> -i
+    然后直接输入插话内容：
+      > 第一行
+      > 第二行（继续累积）
+      > （空行 Enter）→ 提交整块，已发送 human/NNNN.md
+    粘贴多行文本：粘贴的换行逐行进入累积，最后空行提交；
+    空行且无累积 → 忽略；Ctrl-D 退出。
+    """
+    print("输入插话内容（逐行累积，空行 Enter 提交；Ctrl-D 退出）",
+          flush=True)
+    lines = []
+    while True:
+        try:
+            line = input("> ")
+        except EOFError:
+            break
+        if line.strip():
+            lines.append(line)
+        elif lines:
+            body = "\n".join(lines)
+            lines = []
+            path, summ = say(workdir, body)
+            print(f"已发送 {path}" + (f"（摘要: {summ}）" if summ else ""),
+                  flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="human 插话（写一条消息）")
     parser.add_argument("base", help="讨论目录（含 repo.git 与 work-human）")
     parser.add_argument("text", nargs="?", default=None,
                         help="插话文本（可多行；不传则读 stdin）")
+    parser.add_argument("-i", "--interactive", action="store_true",
+                        help="交互模式：逐行输入，空行提交（tmux 下屏用法）")
     args = parser.parse_args()
 
     base = os.path.abspath(os.path.expanduser(args.base))
@@ -90,6 +122,10 @@ def main():
         print(f"错误: work-human 不存在: {workdir}（讨论创建于 human 功能之前?）",
               file=sys.stderr)
         return 1
+
+    if args.interactive:
+        interactive(workdir)
+        return 0
 
     body = args.text if args.text is not None else sys.stdin.read()
     body = body.strip()

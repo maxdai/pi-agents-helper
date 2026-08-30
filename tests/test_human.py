@@ -492,6 +492,47 @@ class TestSayer(unittest.TestCase):
                             if is_message_file(f) and f.startswith("human/"))
         self.assertEqual(human_msgs, ["human/0001.md", "human/0002.md"])
 
+    def test_interactive_multiline_submit(self):
+        """交互模式：多行累积 + 空行提交 → 一条消息。"""
+        import io
+        import contextlib
+        from human_sayer import interactive
+        base, bare, wd = self._env("sayer-interactive")
+        # 模拟 stdin：两行内容 + 空行提交 + EOF
+        fake_in = io.StringIO("第一行\n第二行\n\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(out):
+            old_in = sys.stdin
+            sys.stdin = fake_in
+            try:
+                interactive(wd["human"])
+            finally:
+                sys.stdin = old_in
+        self.assertIn("已发送 human/0001.md", out.getvalue())
+        from meeting_fs import git_show
+        content = git_show(bare, "HEAD", "human/0001.md")
+        self.assertIn("第一行", content)
+        self.assertIn("第二行", content)
+
+    def test_interactive_empty_only(self):
+        """交互模式：只有空行/EOF → 不发送。"""
+        import io
+        import contextlib
+        from human_sayer import interactive
+        base, bare, wd = self._env("sayer-interactive-empty")
+        fake_in = io.StringIO("\n\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(out):
+            old_in = sys.stdin
+            sys.stdin = fake_in
+            try:
+                interactive(wd["human"])
+            finally:
+                sys.stdin = old_in
+        self.assertNotIn("已发送", out.getvalue())
+
     def test_setup_creates_work_human(self):
         """真实 setup 创建 work-human（clone + git 身份）。"""
         with tempfile.TemporaryDirectory() as tmp:
