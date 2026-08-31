@@ -559,6 +559,13 @@ def agent_loop(workdir, agent, responder, max_meeting=10, max_rr=7,
     last_head, last_head_time = None, time.time()
 
     while True:
+        # 讨论被清理（cleanup 删除目录）→ 退出。loop 生命周期跟随其服务
+        # 对象，不依赖 cleanup 杀进程（职责边界，用户 2026-08-31 定）。
+        # repo.git 是讨论存在的唯一标志（workdir 被删后进程 cwd 仍可用，
+        # 但 bare 消失 = 讨论不存在）。
+        if not os.path.isdir(os.path.join(os.path.dirname(workdir), "repo.git")):
+            log(agent, "讨论目录已移除（cleanup）——退出")
+            return
         try:
             git_pull(workdir)
             head = git_head(workdir)
