@@ -125,6 +125,41 @@ meeting（自由发言）→ all-freezing（冻结级联）→ round-robin（RR 
 - `docs/pi-helper-design.md`：完整设计（信息层/流程层分离、各阶段行为推演、
   配额语义、viewer/sayer 设计、tmux 形态、测试策略、决策记录）
 
+## skill 用法（agents-helper）
+
+npm 包 `pi-agents-helper` 提供 skill `agents-helper`（**用户手动触发**）——
+主 pi 代理形态：主 pi 自己管理 human-viewer/sayer（pi-web 等无终端场景必须，
+tmux 是辅助）。
+
+```bash
+# 在 pi 会话中手动触发
+/skill:agents-helper "<问题>"
+```
+
+主 pi 流程（SKILL.md 详述）：
+
+1. `discuss.sh --prepare "<问题>" [--background "..."]` → 生成 spec 目录（继承主 pi model/thinking），用户可查看/编辑
+2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录
+3. **轮询循环**（主 pi 不结束回合）：
+   - `discuss.sh --view <目录> --since <游标>` → 增量消息+状态 → 展示给用户（记录输出末尾 `HEAD=` 作下轮游标）
+   - 询问用户是否插话 → `discuss.sh --say <目录> "<文本>"`
+   - `discuss.sh --status <目录>` → running 继续 / done 停止
+4. `done` → 读 `<目录>/work-c/result.md` → 向用户摘要
+5. `discuss.sh --cleanup <目录>`（必须，避免残留 session）
+
+wrapper 命令一览：
+
+```bash
+./scripts/discuss.sh --prepare "<问题>" [--background "<背景>"]  # 生成 spec
+./scripts/discuss.sh --start <spec目录>                          # 创建+启动（默认 a,b,c / max-meeting 10 / max-rr 5）
+./scripts/discuss.sh --status <目录> | --wait <目录> | --cleanup <目录>
+./scripts/discuss.sh --view <目录> [--since <ref>]               # 增量查看（末尾输出 HEAD= 游标）
+./scripts/discuss.sh --say <目录> "<文本>"                        # 插话
+```
+
+默认参数：agents=`a,b,c`、`--max-meeting 10`、`--max-rr 5`；子讨论 agents 禁用
+`magic-context`/`aft` 扩展（项目级 `.pi/settings.json`）。
+
 ## 依赖与平台
 
 | 依赖 | 版本 | 用途 |

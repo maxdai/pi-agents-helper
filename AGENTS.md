@@ -17,7 +17,12 @@ meeting_fs.py        git/文件层
 meeting_engine.py    【唯一状态机】+ 协议信号 + responder 注入
 meeting_loop.py      Pi 薄壳：responder = wake_llm（真实 LLM）
 fake_agent.py        测试薄壳：responder = 随机决策
-start_discussion.py  环境生成/启动/清理 + human writer
+start_discussion.py  环境生成/启动/清理（含 work-human 创建）
+human_viewer.py      【human 通道】只读展示（增量/--follow/游标）
+human_sayer.py       【human 通道】插话命令（单次/stdin/交互 -i）
+scripts/discuss.sh   skill wrapper（prepare/start/status/wait/cleanup/view/say）
+skills/agents-helper/ SKILL.md（主 pi 代理形态：view 增量轮询 + 插话 + status）
+package.json         npm 包 pi-agents-helper（pi.skills: ["./skills"]）
 templates/           AGENTS.md.tpl / agent.md.tpl / gitignore.tpl / spec-readme.md.tpl
 tests/               测试（unittest discover tests）
 ```
@@ -50,12 +55,14 @@ meeting_loop 通过注入 responder 复用。human 插话不改变状态机—�
    响应计入配额——不加快、不减慢配额消耗。
 5. **human 保留名**：`human` 不可作为参与者名（报错）。
 
-## 阶段划分
+## 阶段划分（已完成）
 
-- **阶段 1**：核心脚本功能（human writer / rr_next_speaker / 配额增量 /
-  setup 扩展）+ 测试调试。
-- **阶段 2**：skill 层（SKILL.md / discuss.sh / npm 包装 / 主 pi 插话入口），
-  阶段 1 调试通过后再实现。
+- **阶段 1（human-viewer）**：viewer 只读展示 + rr_next_speaker 跳过 human +
+  配额增量 + 保留名校验。tag `stage1-human-viewer`。
+- **阶段 2（human-sayer）**：sayer 插话命令 + work-human 通道 + 交互模式 -i +
+  tmux 双屏形态（辅助）。tag `stage2-human-sayer`。
+- **阶段 3（skill）**：npm 包装 + agents-helper skill + discuss.sh wrapper +
+  主 pi 代理形态（主通道）+ tmux 辅助形态。tag `stage3-skill`。
 
 ## 设计文档
 
