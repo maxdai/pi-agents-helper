@@ -1,0 +1,15 @@
+{
+  "mode": "meeting",
+  "protocol_version": 2,
+  "topic": "",
+  "participants": [
+    "a",
+    "b",
+    "c"
+  ],
+  "resultWriter": "c",
+  "maxMeetingRounds": 10,
+  "maxRRRounds": 5,
+  "stallTimeoutSeconds": 600,
+  "commitPolicy": "one-message-per-commit"
+}

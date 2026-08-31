@@ -1,0 +1,4 @@
+9c42ce48dae9f4047a53b9e3e196111c882d773e 92a118fe54782a8908e08ccb8cb6a28f66a3c069 meeting-bot <meeting-bot@local> 1788137454 +0800	update by push
+92a118fe54782a8908e08ccb8cb6a28f66a3c069 6b571cb7eb657117bfad211be94edd8050db0776 meeting-bot <meeting-bot@local> 1788137456 +0800	pull --rebase --autostash: fast-forward
+6b571cb7eb657117bfad211be94edd8050db0776 39911c89106fc6e632c8eb56a1a5b8e8a1e136e3 meeting-bot <meeting-bot@local> 1788137518 +0800	pull --rebase --autostash: fast-forward
+39911c89106fc6e632c8eb56a1a5b8e8a1e136e3 138403b46bd5678268354629244472801d1441b0 meeting-bot <meeting-bot@local> 1788137519 +0800	update by push

@@ -183,4 +183,11 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:
+        # 管道消费者提前关闭（如 `| head` 截断）：静默退出，不打印 traceback
+        # ——viewer 是工具，被主 pi/wrapper 管道消费时输出截断是正常场景。
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        sys.exit(0)
