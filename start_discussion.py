@@ -20,6 +20,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -485,8 +486,36 @@ def _preserve_result_md(base):
     print(f"[cleanup] 已保存 result.md → {dest}")
 
 
+def _kill_loops(base):
+    """杀掉该讨论的 meeting_loop 进程（cleanup 前调用）。
+
+    讨论正常 done 时 agent_loop 自然退出，无残留；但中途清理
+    （放弃讨论/目录被删）时 loop 仍每轮循环（git pull 失败重试）
+    ——实测暴露（2026-08-31：/tmp 残留 3 个空转进程 2 小时）。
+    用 /proc/<pid>/cmdline 精确匹配 base 路径，避免 pgrep -f 匹配
+    到调用自身的 bash 包装（测试方法论 2）。
+    """
+    try:
+        r = subprocess.run(["pgrep", "-f", "meeting_loop.py"],
+                           capture_output=True, text=True)
+    except OSError:
+        return
+    base_abs = os.path.realpath(base)
+    for pid in r.stdout.split():
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                cmd = f.read().decode(errors="replace").replace("\0", " ")
+        except OSError:
+            continue
+        if "meeting_loop.py" in cmd and base_abs in cmd:
+            try:
+                os.kill(int(pid), signal.SIGTERM)
+            except (OSError, ValueError):
+                pass
+
+
 def cleanup_discussion(base):
-    """清理一次讨论：保存 result.md（若存在）→ 删目录。
+    """清理一次讨论：杀 loop 进程 → 保存 result.md（若存在）→ 删目录。
 
     result.md 是讨论唯一产物（审核报告等）——清理前先从 bare git 历史
     复制到父级目录（<base名>-result.md），避免清理丢产物（用户建议）。
@@ -496,6 +525,7 @@ def cleanup_discussion(base):
     if not os.path.isdir(base):
         print(f"[cleanup] 目录不存在: {base}")
         return
+    _kill_loops(base)
     _preserve_result_md(base)
     shutil.rmtree(base)
     print(f"[cleanup] 已删除目录 {base}（含 pi-sessions）")
