@@ -400,7 +400,17 @@ tmux 不可用，skill 必须自己管理 viewer/sayer。
 
 **定位**：插话命令——写入一条 human 消息。
 
-**入口**：`python3 human_sayer.py <base> <文本>`（文本多行：参数或 stdin）
+**入口**：
+
+```bash
+python3 human_sayer.py <base> <文本>      # 单次插话（文本可多行：参数或 stdin）
+python3 human_sayer.py <base> -i          # 交互模式（实测新增，用户 2026-08-31）
+```
+
+**交互模式 -i**（tmux 下屏/主 pi 共用）：逐行累积、**空行 Enter 提交**、
+Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste 方案：纯
+文本通道无终端控制序列）；实测用户反馈驱动（下屏 shell 敲命令不直观
+→ 输入即插话）。
 
 **流程**：
 
@@ -428,10 +438,11 @@ tmux 不可用，skill 必须自己管理 viewer/sayer。
 
 - `human` 保留名校验：`--agents` 拆分后 / spec/agents/ 文件名中含 `human`
   → 报错退出
-- **阶段 1（viewer 先做）暂不建 work-human**（viewer 纯 bare 只读）；
-  阶段 2 加入 sayer 时 setup 才额外创建 `work-human/`（clone + 仓库级
-  git 身份；无 agent 定义/pi-agent.json/AGENTS.md——human 无 LLM 身份；
-  不启动 loop 进程）
+- **work-human 创建**（阶段 2 已实现）：setup 在重建循环**之外**独立创建
+  `work-human/`（clone + 仓库级 git 身份；无 agent 定义/pi-agent.json/
+  AGENTS.md——human 无 LLM 身份；不启动 loop 进程）+ rmtree 幂等守卫。
+  实测教训（2026-08-31）：放入 participants 重建循环内会每迭代 clone
+  一次 → 第二个参与者起 `already exists`（wrapper --start 暴露）
 - `--cleanup` 自然覆盖（删目录含 work-human）
 
 ## 6. 决策记录
@@ -452,13 +463,18 @@ tmux 不可用，skill 必须自己管理 viewer/sayer。
 | tmux 双屏 | 纳入设计：上 viewer --follow / 下 shell sayer；主 pi 启动 + 用户 attach；阶段 3 与主 pi 代理形态并存 | 用户 2026-08-30 |
 | 输入 | 插话文本支持多行（粘贴场景）；shell 参数/文件通道 | 用户 2026-08-30 |
 | 开发铁律 | 职责边界 / 复杂度匹配 / 设计符合度（每次修改后核验） | 用户 2026-08-09（沿用） |
+| skill 名 | `agents-helper`（区别于源项目 meeting-discuss） | 用户 2026-08-31 |
+| npm 包名 | `pi-agents-helper` | 用户 2026-08-31 |
+| tmux 定位 | **辅助方法**：需用户可访问终端（pi-web 无终端时不可用） | 用户 2026-08-31 |
+| 主通道 | **主 pi 代理形态**：skill 自己管理 viewer/sayer（轮询 + 插话），tmux 是辅助 | 用户 2026-08-31 |
+| 下屏高度 | tmux 下屏固定 4 行（`split-window -v -l 4`） | 用户 2026-08-31 |
+| 交互模式 | sayer `-i`：逐行累积、空行 Enter 提交、Ctrl-D 退出（下屏/主 pi 共用） | 用户 2026-08-31 实测反馈 |
+| 多行提交 | 交互模式空行提交（替代 bracketed paste——纯文本通道，无终端控制序列） | 2026-08-31 实测定 |
+| AGENTS.md.tpl | 已加「来自 human 的插话」节（权威输入语义） | 2026-08-30 定稿 |
 
 ### 6.2 待确认
 
-| 问题 | 选项 | 我的倾向 |
-|---|---|---|
-| 多行输入的提交语义（阶段 3 壳内） | bracketed paste 区分粘贴换行 vs 手按 Enter；Enter 提交 | 按此（阶段 3 再定） |
-| AGENTS.md.tpl 是否加一句 human 说明 | a) 加（"可能收到 from: human 的插话，正常回应"） b) 不加 | a（降低 LLM 困惑） |
+（已全部解决，无遗留）
 
 ## 7. 测试策略
 
@@ -469,13 +485,13 @@ tmux 不可用，skill 必须自己管理 viewer/sayer。
 | 边界 | 冻结中插话不解冻、RR 中插话不断链、配额尽未冻结者获回应机会、连续插话 k 条、human+agent 并发写 |
 | 回归 | 基线全部测试不改语义仍绿（human 功能是纯增量） |
 
-## 8. 阶段划分
+## 8. 阶段划分（全部完成）
 
-| 阶段 | 内容 |
-|---|---|
-| **1** | human-viewer（只读展示：新消息 + 状态变化，增量/--follow/游标）+ rr_next_speaker 修复 + 配额增量 + 保留名校验 + 测试 |
-| **2** | human-sayer（插话：写消息核心 + work-human + flock + commit+push 容错）+ 测试 |
-| **3** | skill 层——SKILL.md、discuss.sh wrapper、npm 包装；两种交互形态：**tmux 双屏**（主 pi 启动 + 用户 attach 直接观看/插话）+ **主 pi 代理**（轮询 viewer 增量展示 + sayer 插话入口） |
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| **1** | human-viewer（只读展示：新消息 + 状态变化，增量/--follow/游标）+ rr_next_speaker 修复 + 配额增量 + 保留名校验 + 测试 | ✅ `stage1-human-viewer` |
+| **2** | human-sayer（插话：写消息核心 + work-human + flock + commit+push 容错）+ 交互模式 -i + 测试 | ✅ `stage2-human-sayer` |
+| **3** | skill 层——SKILL.md（agents-helper）、discuss.sh wrapper（--view/--say）、npm 包装（pi-agents-helper）；主 pi 代理形态（主通道）+ tmux 双屏（辅助） | ✅ `stage3-skill` |
 
 ## 9. 风险与已知边界
 
