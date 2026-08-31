@@ -50,12 +50,19 @@ disable-model-invocation: true
 /root/pi-agents-helper/scripts/discuss.sh --start <spec目录>
 ```
 
-记录 wrapper 输出的**讨论目录**（后续所有命令都需要它），并告知用户观看方式：
+记录 wrapper 输出的**讨论目录**（后续所有命令都需要它），并告知用户观看方式
+**（viewer 全文不进 LLM，零 token）：**
 
 ```
-# 任何终端（观看全文，不进 LLM）：
+# 有终端（任何终端，全文实时滚动）：
 python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
+
+# pi-web 场景（!! 本地执行、流式输出、不进 LLM；Esc 中断）：
+!!python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
 ```
+
+注意：`!!` 是阻塞式——follow 期间输入框被占用，插话需先 Esc 中断，
+再 `/skill:agents-helper-human` 插话，然后再 `!!` 续看（看与说交替）。
 
 ### 3. 轮询循环（轻量 status，不要结束回合）
 
