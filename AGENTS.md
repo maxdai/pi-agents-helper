@@ -93,3 +93,12 @@ meeting_loop 通过注入 responder 复用。human 插话不改变状态机—�
 3. **本地与远程保持同步**：提交后确认工作区干净、远程与本地 HEAD 一致。
 4. **提交信息**：使用清晰、描述性的 message，说明本次改动内容。
 5. **skill 设计文档同步**：阶段 2 对 skill 的任何修改，必须同步更新设计文档。
+
+## skill 安装维护（2026-08-31 定）
+
+- **安装方式**：复制快照到 `~/.pi/agent/skills/<名>/SKILL.md`（与源项目
+  meeting-discuss 同方式，非 npm 链接）
+- **SKILL.md 必须用绝对路径**引用 wrapper（`/root/pi-agents-helper/scripts/discuss.sh`）
+  ——复制到 `~/.pi/agent/skills/` 后相对路径 `../../scripts/` 会失效
+- **修改 SKILL.md 后必须重新复制**到 `~/.pi/agent/skills/agents-helper/`
+  才生效（快照不同步，易踩坑）
