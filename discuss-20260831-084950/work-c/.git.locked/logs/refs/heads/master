@@ -1,5 +1,0 @@
-0000000000000000000000000000000000000000 9c42ce48dae9f4047a53b9e3e196111c882d773e root <root@AliAI.(none)> 1788137391 +0800	clone: from /root/pi-agents-helper/discuss-20260831-084950/repo.git
-9c42ce48dae9f4047a53b9e3e196111c882d773e 92a118fe54782a8908e08ccb8cb6a28f66a3c069 meeting-bot <meeting-bot@local> 1788137453 +0800	commit: discuss: c/0001
-92a118fe54782a8908e08ccb8cb6a28f66a3c069 6b571cb7eb657117bfad211be94edd8050db0776 meeting-bot <meeting-bot@local> 1788137456 +0800	pull --rebase --autostash: Fast-forward
-6b571cb7eb657117bfad211be94edd8050db0776 b615d756f2b5858127e5bbba3cdd7980bcfebc96 meeting-bot <meeting-bot@local> 1788137518 +0800	commit: discuss: c/0002
-b615d756f2b5858127e5bbba3cdd7980bcfebc96 138403b46bd5678268354629244472801d1441b0 meeting-bot <meeting-bot@local> 1788137518 +0800	pull --rebase --autostash (finish): refs/heads/master onto 39911c89106fc6e632c8eb56a1a5b8e8a1e136e3

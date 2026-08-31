@@ -1,5 +1,0 @@
-0000000000000000000000000000000000000000 9c42ce48dae9f4047a53b9e3e196111c882d773e meeting-bot <meeting-bot@local> 1788137391 +0800	commit (initial): discuss: setup
-9c42ce48dae9f4047a53b9e3e196111c882d773e 806ac382bf5c8d1465319c6d16f1495170242220 meeting-bot <meeting-bot@local> 1788137464 +0800	commit: discuss: a/0001
-806ac382bf5c8d1465319c6d16f1495170242220 ccc04b0559c6c08a37a7039d6534bf69b35d5bac meeting-bot <meeting-bot@local> 1788137464 +0800	pull --rebase --autostash (finish): refs/heads/master onto 6b571cb7eb657117bfad211be94edd8050db0776
-ccc04b0559c6c08a37a7039d6534bf69b35d5bac 8e5275ccd5ff306535316331c7a79412fea56415 meeting-bot <meeting-bot@local> 1788137525 +0800	commit: discuss: a/0002
-8e5275ccd5ff306535316331c7a79412fea56415 330418d7326def60df128e98efdda1d7ec0ff5d2 meeting-bot <meeting-bot@local> 1788137525 +0800	pull --rebase --autostash (finish): refs/heads/master onto 138403b46bd5678268354629244472801d1441b0

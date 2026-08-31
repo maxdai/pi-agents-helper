@@ -4,3 +4,7 @@ discussion-*/
 pi-sessions/
 *.log
 discussion-*-result.md
+
+# 讨论环境（含 work-human 嵌入式 clone）
+discussion-*/
+discuss-*/
