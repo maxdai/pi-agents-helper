@@ -294,11 +294,16 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
   阶段 3 skill 中主 pi 的 TUI 即壳（viewer → tool output 展示、
   sayer → tool 插话）——不另做 curses UI
 
-### 5.1.1 tmux 双屏形态（实测验证 2026-08-30，用户拍板纳入）
+### 5.1.1 tmux 双屏形态（辅助方法，实测验证 2026-08-30）
 
 **零开发的壳形态**：tmux 上下双屏——上屏 `human_viewer --follow`（实时
-展示），下屏 shell（随时执行 `human_sayer` 插话）。实测通过：插话实时上屏、
+展示），下屏 `human_sayer -i`（交互插话，4 行）。实测通过：插话实时上屏、
 agents 响应、状态变化显示、done 自动退出。
+
+**定位：辅助方法，不是主通道**（用户 2026-08-31 定）：tmux 需要用户能
+访问终端（如 pi-web 外挂 web 接口替代 TUI 时无法进行其它终端的 tmux
+操作）——skill 包装后**主 pi 自己管理 viewer/sayer 是必须的**（主 pi
+代理形态是主通道，见 §5.1.2）。
 
 ```
 ┌────────────────────────────────┐
@@ -329,7 +334,33 @@ agents 响应、状态变化显示、done 自动退出。
 
 **与 skill 的关系**：阶段 3 两种交互形态并存——tmux 形态（用户主动参与，
 直接看屏/输入，不经对话中转）+ 主 pi 代理形态（用户通过对话参与，主 pi
-轮询 viewer + 代执行 sayer）。
+轮询 viewer + 代执行 sayer）。**主 pi 代理是主通道**（pi-web 等无终端
+场景必须），tmux 是用户可访问终端时的辅助。
+
+### 5.1.2 主 pi 代理形态（主通道，阶段 3 skill 核心）
+
+**场景**：用户经 pi-web（外挂 web 接口替代 TUI）等无终端环境使用——
+tmux 不可用，skill 必须自己管理 viewer/sayer。
+
+```
+主 pi（skill 流程）：
+  1. start_discussion 创建+启动讨论
+  2. 轮询循环：
+     - 调用 human_viewer --since <游标> → 增量消息+状态 → 展示给用户
+       （tool output / 摘要汇报；游标由主 pi 维护或复用 .viewer-cursor）
+     - 询问用户是否插话 → 用户输入 → 调用 human_sayer <文本>
+     - --status 直到 done/stopped
+  3. done → 读 result.md 总结 → 清理（--cleanup）
+```
+
+要点：
+- viewer 增量输出（--since）+ 主 pi 维护游标 = 每轮只展示新消息
+- sayer 单次调用（文本参数）即插话——主 pi 是人的代理，人不直接碰命令
+- 与现有 meeting-discuss skill 的轮询模式一致（循环 status → 报告进展）
+- tmux 形态并行可用：用户有终端时可另开 tmux 观看，二者互不干扰
+  （viewer 游标文件 .viewer-cursor 由 --follow 与主 pi 共用需注意：
+  两路消费同一游标会互相推进——主 pi 代理用 --since 无状态传参，
+  不写游标文件，与 --follow 互不干扰）
 
 ### 5.2 human-viewer（阶段 1）
 
