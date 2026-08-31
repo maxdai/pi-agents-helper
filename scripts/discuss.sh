@@ -75,9 +75,10 @@ cmd_cleanup() {
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
     # 若清理的是当前讨论，删除状态文件（agents-helper-human 扩展用）
     if [ -f "$HOME/.pi/agents-helper-current" ]; then
-        local cur
+        local cur abs_dir
         cur="$(cat "$HOME/.pi/agents-helper-current" 2>/dev/null)"
-        if [ "$cur" = "$dir" ]; then
+        abs_dir="$(cd "$dir" && pwd)"
+        if [ "$cur" = "$abs_dir" ]; then
             rm -f "$HOME/.pi/agents-helper-current"
         fi
     fi
