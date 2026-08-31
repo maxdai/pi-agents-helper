@@ -15,7 +15,6 @@
 
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 
 // 项目绝对路径（AGENTS.md 维护规则：SKILL/扩展引用必须用绝对路径）
@@ -23,13 +22,16 @@ const HELPER_DIR = "/root/pi-agents-helper";
 const SAYER = path.join(HELPER_DIR, "human_sayer.py");
 
 // 当前讨论目录状态文件：主 pi 的 --start 写入、--cleanup 删除
-function stateFile(): string {
-  return path.join(os.homedir(), ".pi", "agents-helper-current");
+// 位置：项目下（session cwd）——不污染全局；wrapper 的 $PWD 与扩展的
+// ctx.cwd 同源（主 pi session 的工作目录）。不同项目 session 互不干扰；
+// 同一目录多 session 并发讨论是已知边界（后启动覆盖）。
+function stateFile(cwd: string): string {
+  return path.join(cwd, ".agents-helper-current");
 }
 
-function readCurrentDir(): string | null {
+function readCurrentDir(cwd: string): string | null {
   try {
-    const p = stateFile();
+    const p = stateFile(cwd);
     if (!fs.existsSync(p)) return null;
     const dir = fs.readFileSync(p, "utf8").trim();
     return dir && fs.existsSync(dir) ? dir : null;
@@ -63,7 +65,7 @@ export default function register(pi: any) {
         ctx.ui.notify("插话内容为空——用法: /agents-helper-human <文本>", "warning");
         return;
       }
-      const dir = readCurrentDir();
+      const dir = readCurrentDir(ctx.cwd);
       if (!dir) {
         ctx.ui.notify(
           "没有正在进行的讨论（agents-helper-current 状态文件缺失或目录已清理）。" +

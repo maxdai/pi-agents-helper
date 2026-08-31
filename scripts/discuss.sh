@@ -74,12 +74,12 @@ cmd_cleanup() {
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
     # 若清理的是当前讨论，删除状态文件（agents-helper-human 扩展用）
-    if [ -f "$HOME/.pi/agents-helper-current" ]; then
+    if [ -f "$PWD/.agents-helper-current" ]; then
         local cur abs_dir
-        cur="$(cat "$HOME/.pi/agents-helper-current" 2>/dev/null)"
+        cur="$(cat "$PWD/.agents-helper-current" 2>/dev/null)"
         abs_dir="$(cd "$dir" && pwd)"
         if [ "$cur" = "$abs_dir" ]; then
-            rm -f "$HOME/.pi/agents-helper-current"
+            rm -f "$PWD/.agents-helper-current"
         fi
     fi
 }
@@ -345,7 +345,8 @@ SETTINGS_EOF
     fi
 
     # 记录当前讨论目录（agents-helper-human 扩展读取；--cleanup 时删除）
-    echo "$dir_path" > "$HOME/.pi/agents-helper-current"
+    # 位置：项目下（session cwd），不污染全局
+    echo "$dir_path" > "$PWD/.agents-helper-current"
 
     cat <<OUTPUT_EOF
 讨论已启动
