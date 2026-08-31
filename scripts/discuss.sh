@@ -72,12 +72,15 @@ cmd_wait() {
 cmd_cleanup() {
     local dir="$1"
     require_dir "$dir"
+    # 先算规范化绝对路径（目录删了 cd 会失败）——start_discussion --cleanup
+    # 会先删目录，之后再 cd "$dir" 就 No such file（实测暴露 2026-08-31）
+    local abs_dir
+    abs_dir="$(cd "$dir" && pwd 2>/dev/null || readlink -f "$dir" 2>/dev/null)"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
     # 若清理的是当前讨论，删除状态文件（agents-helper-human 扩展用）
     if [ -f "$PWD/.agents-helper-current" ]; then
-        local cur abs_dir
+        local cur
         cur="$(cat "$PWD/.agents-helper-current" 2>/dev/null)"
-        abs_dir="$(cd "$dir" && pwd)"
         if [ "$cur" = "$abs_dir" ]; then
             rm -f "$PWD/.agents-helper-current"
         fi
