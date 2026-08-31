@@ -38,7 +38,7 @@ pi-agents-helper/
 ```
 /skill:agents-helper "<问题>"                        # 默认模式启动讨论（pi-web 也可用）
 /skill:agents-helper-tmux "<问题>"                   # tmux 双屏模式（用户明确指定）
-/skill:agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
+/agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
 ```
 
 ### 用命令行（直接操作）
@@ -148,10 +148,10 @@ npm 包 `pi-agents-helper` 提供三个 skill（**用户手动触发**）：
 |---|---|---|
 | `/skill:agents-helper "<问题>"` | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），观看不进 LLM（零 token） |
 | `/skill:agents-helper-tmux "<问题>"` | **tmux 双屏模式**（用户明确指定） | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
-| `/skill:agents-helper-human "<文本>"` | **插话**（讨论进行中） | —（一条消息，立即发送） |
+| `/agents-helper-human "<文本>"` | **插话**（讨论进行中） | —（一条消息，立即发送） |
 
 讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
-`/skill:agents-helper-human`。
+`/agents-helper-human`（prompt template，`$1` 参数直接替换——无歧义）。
 
 ### 观看方式（viewer 全文不进 LLM）
 

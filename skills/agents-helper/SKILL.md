@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Agents Helper（多 agent 讨论 + human 插话，默认模式）
 
-本 skill 让当前 Pi 会话启动一个独立的 `pi-agents-helper` 多 agent 讨论：多个独立视角分析复杂问题并取回 `result.md` 共识结论；讨论进行中用户可随时用 `/skill:agents-helper-human <文本>` 插话（不是参与者、不参与流程控制，agents 能看到并可回应）。
+本 skill 让当前 Pi 会话启动一个独立的 `pi-agents-helper` 多 agent 讨论：多个独立视角分析复杂问题并取回 `result.md` 共识结论；讨论进行中用户可随时用 `/agents-helper-human <文本>` 插话（不是参与者、不参与流程控制，agents 能看到并可回应）。
 
 **默认模式不依赖终端/tmux**（pi-web 可用）。观看全文在本地 viewer 进行（不进 LLM 上下文）；用户明确要 tmux 双屏时改用 `/skill:agents-helper-tmux`。
 
@@ -27,7 +27,7 @@ disable-model-invocation: true
 - **触发即启动**：一旦判定触发，无条件立即执行第 1 步（--prepare），其他请求不得推迟启动。
 - 讨论是异步的：启动后立即返回，但**主 pi 不能结束当前回合**——持续轮询直到 `done` 或 `stopped`。
 - **viewer 全文不进 LLM**：观看走本地 viewer（用户终端跑 `human_viewer <目录> --follow`，或用户自选其他方式）；主 pi **不执行 --view 转述全文**（消耗 token 且无意义）。
-- **插话走独立命令**：用户用 `/skill:agents-helper-human <文本>` 插话；普通 user message 一律视为与主 pi 对话。
+- **插话走独立命令**：用户用 `/agents-helper-human <文本>` 插话；普通 user message 一律视为与主 pi 对话。
 - 每次 status 轮询后向用户简要报告进展（状态 + 新消息计数，不列全文）。
 - 读取 `result.md` 后必须清理讨论目录。
 
@@ -62,7 +62,7 @@ python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
 ```
 
 注意：`!!` 是阻塞式——follow 期间输入框被占用，插话需先 Esc 中断，
-再 `/skill:agents-helper-human` 插话，然后再 `!!` 续看（看与说交替）。
+再 `/agents-helper-human` 插话，然后再 `!!` 续看（看与说交替）。
 
 ### 3. 轮询循环（轻量 status，不要结束回合）
 
@@ -77,7 +77,7 @@ python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
 - 每次向用户简要报告**状态**即可（running/done/stopped）；有新 human 插话
   的反馈（agents 是否回应）时告知用户。
 
-**用户插话**：用户使用 `/skill:agents-helper-human <文本>` 命令（独立 skill 立即转发）。主 pi 不主动询问、不代发。
+**用户插话**：用户使用 `/agents-helper-human <文本>` 命令（独立 skill 立即转发）。主 pi 不主动询问、不代发。
 
 ### 4. 等待完成（可选）
 
@@ -110,7 +110,7 @@ python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
 
 ## human 通道说明
 
-- 插话入口：`/skill:agents-helper-human <文本>`（唯一入口；普通消息是对话）
+- 插话入口：`/agents-helper-human <文本>`（唯一入口；普通消息是对话）
 - human 消息由 wrapper `--say` 写入（权威输入语义，见讨论环境的 AGENTS.md）
 - human 不参与流程判定：不插话 = 讨论照常完成
 - 用户每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加快配额耗尽）

@@ -8,11 +8,15 @@
   "pi": {
     "skills": [
       "./skills"
+    ],
+    "prompts": [
+      "./prompts"
     ]
   },
   "files": [
     "scripts",
     "skills",
+    "prompts",
     "*.py",
     "templates",
     "README.md",
