@@ -6,8 +6,12 @@
  * 不经过 LLM——命令 handler 直接 spawn human_sayer.py（一次调用一次返回），
  * 结果用 ctx.ui.notify 反馈。
  *
- * 讨论目录来源：主 pi 的 skill 流程（discuss.sh --start）会把当前讨论目录
- * 写入 <状态文件>；handler 读它。无讨论或目录不存在 → 提示用户。
+ * 讨论目录发现（零状态文件，方案 3，用户 2026-08-31 定）：
+ *   wrapper --start 的目录名 = discuss-<PI_SESSION_ID>-<时间戳>
+ *   （aft 不再替换 bash 后 PI_SESSION_ID 注入可用）；
+ *   handler 用 ctx.sessionManager.getSessionId() 取本 session id，
+ *   glob ctx.cwd/discuss-<sid>-* 取最新目录——session 隔离（同目录
+ *   多 session 并发讨论也互不干扰），无状态文件、无 cleanup 比对。
  *
  * 观看讨论仍用 `!!` bash 流式（human_viewer --follow）——命令 API 无原生
  * 流式通道（handler 返回 Promise<void>），且 bash 流式是平台原生能力。
@@ -21,20 +25,18 @@ import * as path from "node:path";
 const HELPER_DIR = "/root/pi-agents-helper";
 const SAYER = path.join(HELPER_DIR, "human_sayer.py");
 
-// 当前讨论目录状态文件：主 pi 的 --start 写入、--cleanup 删除
-// 位置：项目下（session cwd）——不污染全局；wrapper 的 $PWD 与扩展的
-// ctx.cwd 同源（主 pi session 的工作目录）。不同项目 session 互不干扰；
-// 同一目录多 session 并发讨论是已知边界（后启动覆盖）。
-function stateFile(cwd: string): string {
-  return path.join(cwd, ".agents-helper-current");
-}
-
-function readCurrentDir(cwd: string): string | null {
+/** 按 (cwd, sessionId) 推导当前讨论目录：discuss-<sid>-<stamp> 中字典序最大者。 */
+function findCurrentDir(cwd: string, sid: string): string | null {
   try {
-    const p = stateFile(cwd);
-    if (!fs.existsSync(p)) return null;
-    const dir = fs.readFileSync(p, "utf8").trim();
-    return dir && fs.existsSync(dir) ? dir : null;
+    const prefix = `discuss-${sid}-`;
+    const names = fs
+      .readdirSync(cwd, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name.startsWith(prefix))
+      .map((e) => e.name)
+      .sort();
+    if (names.length === 0) return null;
+    const dir = path.join(cwd, names[names.length - 1]);
+    return fs.existsSync(dir) ? dir : null;
   } catch {
     return null;
   }
@@ -65,10 +67,11 @@ export default function register(pi: any) {
         ctx.ui.notify("插话内容为空——用法: /agents-helper-human <文本>", "warning");
         return;
       }
-      const dir = readCurrentDir(ctx.cwd);
+      const sid = ctx.sessionManager.getSessionId();
+      const dir = findCurrentDir(ctx.cwd, sid);
       if (!dir) {
         ctx.ui.notify(
-          "没有正在进行的讨论（agents-helper-current 状态文件缺失或目录已清理）。" +
+          "没有正在进行的讨论（cwd 下无 discuss-<sessionId>-* 目录）。" +
             "先用 /agents-helper 启动讨论。",
           "error"
         );

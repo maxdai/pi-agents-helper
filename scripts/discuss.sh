@@ -72,19 +72,7 @@ cmd_wait() {
 cmd_cleanup() {
     local dir="$1"
     require_dir "$dir"
-    # 先算规范化绝对路径（目录删了 cd 会失败）——start_discussion --cleanup
-    # 会先删目录，之后再 cd "$dir" 就 No such file（实测暴露 2026-08-31）
-    local abs_dir
-    abs_dir="$(cd "$dir" && pwd 2>/dev/null || readlink -f "$dir" 2>/dev/null)"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
-    # 若清理的是当前讨论，删除状态文件（agents-helper-human 扩展用）
-    if [ -f "$PWD/.agents-helper-current" ]; then
-        local cur
-        cur="$(cat "$PWD/.agents-helper-current" 2>/dev/null)"
-        if [ "$cur" = "$abs_dir" ]; then
-            rm -f "$PWD/.agents-helper-current"
-        fi
-    fi
 }
 
 cmd_view() {
@@ -173,27 +161,32 @@ print(f"{model}|{thinking}")
 PYEOF
 }
 
-# 读取主 pi 的 model/thinking（优先 session 文件，其次环境变量，缺失回退默认）
+# 读取主 pi 的 model/thinking（用户 2026-08-31：aft 不再替换 bash 后
+# 环境变量可用且是当前生效值——优先环境变量，session 文件解析仅为兜底）
 read_pi_model_thinking() {
-    local from_session
-    from_session="$(read_pi_model_thinking_from_session)"
-    local session_model="${from_session%%|*}"
-    local session_thinking="${from_session##*|}"
     local provider="${PI_PROVIDER:-}"
     local model="${PI_MODEL:-}"
     local thinking="${PI_REASONING_LEVEL:-}"
     local full_model=""
 
-    if [ -n "$session_model" ]; then
-        full_model="$session_model"
-    elif [ -n "$provider" ] && [ -n "$model" ]; then
+    if [ -n "$provider" ] && [ -n "$model" ]; then
         full_model="$provider/$model"
     elif [ -n "$model" ]; then
         full_model="$model"
     fi
 
-    if [ -n "$session_thinking" ]; then
-        thinking="$session_thinking"
+    # 兜底：环境变量缺失时解析 session 文件（旧路径，aft 替换 bash 时代的产物）
+    if [ -z "$full_model" ] || [ -z "$thinking" ]; then
+        local from_session
+        from_session="$(read_pi_model_thinking_from_session)"
+        local session_model="${from_session%%|*}"
+        local session_thinking="${from_session##*|}"
+        if [ -z "$full_model" ] && [ -n "$session_model" ]; then
+            full_model="$session_model"
+        fi
+        if [ -z "$thinking" ] && [ -n "$session_thinking" ]; then
+            thinking="$session_thinking"
+        fi
     fi
     echo "$full_model|$thinking"
 }
@@ -346,10 +339,6 @@ SETTINGS_EOF
     if ! "$PYTHON" "$START_DISCUSSION" --dir "$dir_path" --skip-setup --start; then
         fail "讨论启动失败，请查看上方输出"
     fi
-
-    # 记录当前讨论目录（agents-helper-human 扩展读取；--cleanup 时删除）
-    # 位置：项目下（session cwd），不污染全局
-    echo "$dir_path" > "$PWD/.agents-helper-current"
 
     cat <<OUTPUT_EOF
 讨论已启动
