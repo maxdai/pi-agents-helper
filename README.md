@@ -125,25 +125,34 @@ meeting（自由发言）→ all-freezing（冻结级联）→ round-robin（RR 
 - `docs/pi-helper-design.md`：完整设计（信息层/流程层分离、各阶段行为推演、
   配额语义、viewer/sayer 设计、tmux 形态、测试策略、决策记录）
 
-## skill 用法（agents-helper）
+## skill 用法（三入口）
 
-npm 包 `pi-agents-helper` 提供 skill `agents-helper`（**用户手动触发**）——
-主 pi 代理形态：主 pi 自己管理 human-viewer/sayer（pi-web 等无终端场景必须，
-tmux 是辅助）。
+npm 包 `pi-agents-helper` 提供三个 skill（**用户手动触发**）：
+
+| 入口 | 用途 | 观看方式 |
+|---|---|---|
+| `/skill:agents-helper "<问题>"` | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），查看进 LLM 零 token |
+| `/skill:agents-helper-tmux "<问题>"` | **tmux 双屏模式**（用户明确指定） | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
+| `/skill:agents-helper-human "<文本>"` | **插话**（讨论进行中） | —（一条消息，立即发送） |
+
+讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
+`/skill:agents-helper-human`。
+
+### 观看方式（viewer 全文不进 LLM）
 
 ```bash
-# 在 pi 会话中手动触发
-/skill:agents-helper "<问题>"
+# 有终端：任何终端实时滚动
+python3 human_viewer.py <目录> --follow
+
+# pi-web：!! 流式（excludeFromContext，不进 LLM；Esc 中断后插话再续看）
+!!python3 /root/pi-agents-helper/human_viewer.py <目录> --follow
 ```
 
-主 pi 流程（SKILL.md 详述）：
+### 主 pi 流程（默认模式，SKILL.md 详述）
 
 1. `discuss.sh --prepare "<问题>" [--background "..."]` → 生成 spec 目录（继承主 pi model/thinking），用户可查看/编辑
-2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录
-3. **轮询循环**（主 pi 不结束回合）：
-   - `discuss.sh --view <目录> --since <游标>` → 增量消息+状态 → 展示给用户（记录输出末尾 `HEAD=` 作下轮游标）
-   - 询问用户是否插话 → `discuss.sh --say <目录> "<文本>"`
-   - `discuss.sh --status <目录>` → running 继续 / done 停止
+2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录；主 pi 告知观看方式
+3. **轮询**（主 pi 不结束回合）：`discuss.sh --status <目录>` 轻量轮询 → running 继续 / done 停止（**不转述全文**，观看零 token）
 4. `done` → 读 `<目录>/work-c/result.md` → 向用户摘要
 5. `discuss.sh --cleanup <目录>`（必须，避免残留 session）
 

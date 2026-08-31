@@ -73,9 +73,9 @@ python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
 ```
 
 - 输出仅一行状态（`running` / `done` / `stopped` / `not-exists`）。
-- 轮询间隔 60-120s；**不执行 --view 全文转述**。
-- 每次向用户简要报告：状态 + 新消息数（`git ls-tree | wc` 一行计数，不列内容）。
-- 有新 human 插话反馈时告知用户（agents 是否回应）。
+- 轮询间隔 60-120s；**不执行 --view 全文转述**（用户已在 !! 流式/终端观看）。
+- 每次向用户简要报告**状态**即可（running/done/stopped）；有新 human 插话
+  的反馈（agents 是否回应）时告知用户。
 
 **用户插话**：用户使用 `/skill:agents-helper-human <文本>` 命令（独立 skill 立即转发）。主 pi 不主动询问、不代发。
 

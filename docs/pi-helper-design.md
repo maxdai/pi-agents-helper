@@ -300,28 +300,29 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
 展示），下屏 `human_sayer -i`（交互插话，4 行）。实测通过：插话实时上屏、
 agents 响应、状态变化显示、done 自动退出。
 
-**定位：辅助方法，不是主通道**（用户 2026-08-31 定）：tmux 需要用户能
-访问终端（如 pi-web 外挂 web 接口替代 TUI 时无法进行其它终端的 tmux
-操作）——skill 包装后**主 pi 自己管理 viewer/sayer 是必须的**（主 pi
-代理形态是主通道，见 §5.1.2）。
+**skill 入口：`/skill:agents-helper-tmux`——用户明确指定才用**（用户
+2026-08-31 定）：tmux 需要用户能访问终端（pi-web 无终端时不可用），
+因此默认模式（`agents-helper`）不碰 tmux；用户主动要求 tmux 双屏时
+用本 skill。主 pi 启动 tmux + 提示 attach 命令后，**之后的操作都在
+tmux 内进行**；主 pi 只轻量 status 轮询等 done 收尾。
 
 ```
 ┌────────────────────────────────┐
 │ 上屏：human_viewer --follow     │  ← 新消息/状态变化实时展示，done 自动退出
 ├────────────────────────────────┤
-│ 下屏：shell                    │  ← 随时 python3 human_sayer.py <base> "文本"
+│ 下屏（4 行）：human_sayer -i    │  ← 输入即插话（空行提交）
 └────────────────────────────────┘
 ```
 
-**主 pi 一键启动 + 用户终端接入**（用户 2026-08-30 定）：
+**主 pi 启动流程**（用户 2026-08-30 定）：
 
 ```
 主 pi：start_discussion（创建+启动）→ tmux new-session -d -s discuss-<ts>
-      （上屏 viewer --follow / 下屏 shell，下屏 -l 4 固定 4 行——
-      插话输入只需提示符+输入行+反馈，空间留给上屏讨论）
-      → 告知用户 attach 命令
-用户：另一终端 tmux attach -t discuss-<ts> → 直接观看/插话（随时 detach）
-主 pi：轮询 --status → done → 通知用户 → kill tmux + --cleanup
+      （上屏 viewer --follow / 下屏 sayer -i，下屏 -l 4 固定 4 行）
+      → 告知用户 attach 命令（tmux attach -t discuss-<ts>）
+用户：另一终端 tmux attach → 直接观看/插话（随时 detach，讨论继续）
+主 pi：轻量轮询 --status → done → 通知用户 → kill tmux → 读 result.md
+      → 清理
 ```
 
 关键点：
@@ -332,35 +333,35 @@ agents 响应、状态变化显示、done 自动退出。
   pane 索引（-t session.N）；new-session 直接跑 viewer 偶发退出
   （不可复现），可靠用法是进 shell 后发送 viewer 命令
 
-**与 skill 的关系**：阶段 3 两种交互形态并存——tmux 形态（用户主动参与，
-直接看屏/输入，不经对话中转）+ 主 pi 代理形态（用户通过对话参与，主 pi
-轮询 viewer + 代执行 sayer）。**主 pi 代理是主通道**（pi-web 等无终端
-场景必须），tmux 是用户可访问终端时的辅助。
+**与 skill 的关系**：阶段 3 三种 skill 入口——`agents-helper`（默认模式，
+主通道）、`agents-helper-tmux`（tmux 双屏，用户明确指定）、
+`agents-helper-human`（插话专用）。tmux 模式中观看与插话全在 tmux 内，
+不经主 pi/LLM。
 
-### 5.1.2 主 pi 代理形态（主通道，阶段 3 skill 核心）
+### 5.1.2 默认模式（主通道，阶段 3 skill 核心）
 
-**场景**：用户经 pi-web（外挂 web 接口替代 TUI）等无终端环境使用——
-tmux 不可用，skill 必须自己管理 viewer/sayer。
+**场景**：pi-web（外挂 web 接口替代 TUI）等无终端环境——tmux 不可用，
+观看走 `!!` 流式通道；有终端时用户可直接本地跑 viewer。
 
 ```
 主 pi（skill 流程）：
   1. start_discussion 创建+启动讨论
-  2. 轮询循环：
-     - 调用 human_viewer --since <游标> → 增量消息+状态 → 展示给用户
-       （tool output / 摘要汇报；游标由主 pi 维护或复用 .viewer-cursor）
-     - 询问用户是否插话 → 用户输入 → 调用 human_sayer <文本>
-     - --status 直到 done/stopped
-  3. done → 读 result.md 总结 → 清理（--cleanup）
+  2. 告知用户观看方式（viewer 全文不进 LLM，零 token）：
+     - 有终端：python3 human_viewer.py <dir> --follow
+     - pi-web：!!python3 human_viewer.py <dir> --follow
+       （pi-web 的 !! 流式 bash 通道，实测验证 2026-08-31；Esc 中断，
+       看与说交替）
+  3. 轻量轮询：--status 直到 done/stopped（不 --view 转述全文）
+  4. done → 读 result.md 总结 → 清理（--cleanup）
 ```
 
 要点：
-- viewer 增量输出（--since）+ 主 pi 维护游标 = 每轮只展示新消息
-- sayer 单次调用（文本参数）即插话——主 pi 是人的代理，人不直接碰命令
-- 与现有 meeting-discuss skill 的轮询模式一致（循环 status → 报告进展）
-- tmux 形态并行可用：用户有终端时可另开 tmux 观看，二者互不干扰
-  （viewer 游标文件 .viewer-cursor 由 --follow 与主 pi 共用需注意：
-  两路消费同一游标会互相推进——主 pi 代理用 --since 无状态传参，
-  不写游标文件，与 --follow 互不干扰）
+- **viewer 全文不进 LLM 上下文**（!! 的 excludeFromContext / 终端本地
+  执行）——观看零 token，主 pi 不转述
+- **插话独立 skill**（`agents-helper-human`，用户 2026-08-31 定）：
+  普通 user message 一律视为与主 pi 对话，不歧义；主 pi 不询问/不代发
+- 主 pi 轮询只报状态（running/done/stopped），有新插话反馈才告知
+- `--status` 轮询与观看并行：用户实时观看不受主 pi 轮询影响
 
 ### 5.2 human-viewer（阶段 1）
 
@@ -471,6 +472,10 @@ Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste �
 | 交互模式 | sayer `-i`：逐行累积、空行 Enter 提交、Ctrl-D 退出（下屏/主 pi 共用） | 用户 2026-08-31 实测反馈 |
 | 多行提交 | 交互模式空行提交（替代 bracketed paste——纯文本通道，无终端控制序列） | 2026-08-31 实测定 |
 | AGENTS.md.tpl | 已加「来自 human 的插话」节（权威输入语义） | 2026-08-30 定稿 |
+| 插话入口 | 独立 skill `agents-helper-human`（`/skill:agents-helper-human <文本>`）；普通 user message = 与主 pi 对话 | 用户 2026-08-31 |
+| tmux 入口 | 独立 skill `agents-helper-tmux`：用户明确指定才用，之后操作全在 tmux 内 | 用户 2026-08-31 |
+| pi-web 观看 | `!!human_viewer.py <dir> --follow` 流式实时（excludeFromContext，不进 LLM）；Esc 中断看说交替 | 用户 2026-08-31 改 pi-web + 实测 |
+| 主 pi 轮询 | 只报状态不转述全文；观看零 token | 用户 2026-08-31 |
 
 ### 6.2 待确认
 
