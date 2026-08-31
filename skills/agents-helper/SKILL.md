@@ -29,7 +29,7 @@ disable-model-invocation: true
 运行：
 
 ```bash
-../../scripts/discuss.sh --prepare "<问题>" [--background "<背景>"]
+/root/pi-agents-helper/scripts/discuss.sh --prepare "<问题>" [--background "<背景>"]
 ```
 
 - `<问题>` 必填，是讨论主题。
@@ -48,7 +48,7 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 用户确认"继续"后，主 pi 运行：
 
 ```bash
-../../scripts/discuss.sh --start <spec目录>
+/root/pi-agents-helper/scripts/discuss.sh --start <spec目录>
 ```
 
 启动后 wrapper 会输出讨论目录路径和 human 通道命令。**记录讨论目录**（后续命令都需要它）。
@@ -60,7 +60,7 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 **(a) 增量查看进展**：
 
 ```bash
-../../scripts/discuss.sh --view <目录> --since <游标>
+/root/pi-agents-helper/scripts/discuss.sh --view <目录> --since <游标>
 ```
 
 - 第一次轮询：不带 `--since`（看全部）。
@@ -73,7 +73,7 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 每轮都问（简短即可）："要插话吗？"用户给内容则：
 
 ```bash
-../../scripts/discuss.sh --say <目录> "<文本>"
+/root/pi-agents-helper/scripts/discuss.sh --say <目录> "<文本>"
 ```
 
 - 插话后告知用户已发送；agents 下轮即看到并可回应（**已冻结的 agent 不会响应**，正常）。
@@ -82,7 +82,7 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 **(c) 查看状态**：
 
 ```bash
-../../scripts/discuss.sh --status <目录>
+/root/pi-agents-helper/scripts/discuss.sh --status <目录>
 ```
 
 可能的状态：
@@ -99,7 +99,7 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 也可以阻塞等待：
 
 ```bash
-../../scripts/discuss.sh --wait <目录>
+/root/pi-agents-helper/scripts/discuss.sh --wait <目录>
 ```
 
 完成时会打印 `result.md` 路径。
@@ -122,7 +122,7 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 读取完 `result.md` 后，必须清理讨论目录：
 
 ```bash
-../../scripts/discuss.sh --cleanup <目录>
+/root/pi-agents-helper/scripts/discuss.sh --cleanup <目录>
 ```
 
 ## 默认参数
