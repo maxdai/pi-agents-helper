@@ -39,7 +39,10 @@ disable-model-invocation: true
 - 讨论是异步的：启动后立即返回，但**主 pi 不能结束当前回合**。
 - 启动后必须持续轮询状态，直到 `done` 或 `stopped`，再结束回合。
 - 每次轮询后必须向用户报告进展。
-- **human 插话是主通道**：每轮用 `--view` 增量展示新消息后，询问用户是否插话；用户给出内容后立即 `--say`。
+- **human 插话走独立命令**：用户插话用 `/skill:agents-helper-human <文本>`
+  （本会话已加载的插话专用 skill），**主 pi 不要在轮询中询问/代发插话**；
+  用户输入插话命令后立即 `--say`。普通 user message 一律视为与主 pi 对话，
+  不得当作插话。
 - 读取 `result.md` 后必须清理讨论目录，避免残留 session。
 
 ## 使用步骤
@@ -88,16 +91,10 @@ wrapper 会生成一个临时 spec 目录，并输出路径。
 - 输出 = 新消息（`[作者/序号] from (type): summary` + 正文）+ 状态变化 + 末尾 `HEAD=<hash>`。
 - **向用户展示新消息**（有 human 消息时明确标注来源是 human）。
 
-**(b) 询问用户是否插话**：
+**(b) 用户插话**：
 
-每轮都问（简短即可）："要插话吗？"用户给内容则：
-
-```bash
-/root/pi-agents-helper/scripts/discuss.sh --say <目录> "<文本>"
-```
-
-- 插话后告知用户已发送；agents 下轮即看到并可回应（**已冻结的 agent 不会响应**，正常）。
-- 用户每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加快配额耗尽）。
+用户随时可用 `/skill:agents-helper-human <文本>` 插话（独立 skill，立即
+`--say` 发送）。主 pi 不主动询问、不代发——普通 user message 是对话，不是插话。
 
 **(c) 查看状态**：
 
