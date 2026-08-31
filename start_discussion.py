@@ -445,15 +445,20 @@ def setup_environment(args, participants, base, spec_dir=None):
             with open(os.path.join(workdir, rel), "w") as f:
                 f.write(content)
 
-        # work-human：human 插话的提交通道（helper 设计 §5.4）——
-        # 固定存在、不占参与者名额、无 agent 定义/pi-agent.json/AGENTS.md
-        # （human 无 LLM 身份），不启动 loop 进程。
-        _clone_work(base, "human")
+    # work-human：human 插话的提交通道（helper 设计 §5.4）——
+    # 固定存在、不占参与者名额、无 agent 定义/pi-agent.json/AGENTS.md
+    # （human 无 LLM 身份），不启动 loop 进程。
+    # **必须在重建循环之外独立创建**（循环内会每迭代 clone 一次 →
+    # 第二个参与者起 already exists，实测暴露）；rmtree 守卫幂等。
+    wh = os.path.join(base, "work-human")
+    if os.path.exists(wh):
+        shutil.rmtree(wh)
+    _clone_work(base, "human")
 
-        # 复制 meeting_loop.py + 依赖模块（脚本同目录，自包含）
-        for mod in ["meeting_loop.py", "meeting_fs.py", "meeting_core.py",
-                    "meeting_engine.py"]:
-            shutil.copy(os.path.join(HERE, mod), os.path.join(base, mod))
+    # 复制 meeting_loop.py + 依赖模块（脚本同目录，自包含）
+    for mod in ["meeting_loop.py", "meeting_fs.py", "meeting_core.py",
+                "meeting_engine.py"]:
+        shutil.copy(os.path.join(HERE, mod), os.path.join(base, mod))
     rw = args.result_writer or participants[-1]
     print(f"[setup] 环境就绪: {base}（{len(participants)} agents: {', '.join(participants)}）")
     print(f"[setup] resultWriter={rw}, maxMeeting={args.max_meeting}, maxRR={args.max_rr}, "

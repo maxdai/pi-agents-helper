@@ -1,0 +1,30 @@
+{
+  "name": "pi-agents-helper",
+  "version": "0.1.0",
+  "description": "Pi skill + wrapper for pi-agents-helper: launch a multi-agent discussion with human interjection channel from a Pi session.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "files": [
+    "scripts",
+    "skills",
+    "*.py",
+    "templates",
+    "README.md",
+    "AGENTS.md",
+    "docs/pi-helper-design.md"
+  ],
+  "keywords": [
+    "pi",
+    "pi-skill",
+    "meeting",
+    "multi-agent",
+    "discussion",
+    "human-interjection"
+  ]
+}
