@@ -358,8 +358,9 @@ tmux 内进行**；主 pi 只轻量 status 轮询等 done 收尾。
 要点：
 - **viewer 全文不进 LLM 上下文**（!! 的 excludeFromContext / 终端本地
   执行）——观看零 token，主 pi 不转述
-- **插话独立命令**（`agents-helper-human` prompt template，用户
-  2026-08-31 定）：普通 user message 一律视为与主 pi 对话，不歧义；
+- **插话独立命令**（`agents-helper-human` 扩展命令，用户
+  2026-08-31 定）：零 LLM 参与——handler 直接 spawn human_sayer，
+  notify 反馈；普通 user message 一律视为与主 pi 对话，不歧义；
   主 pi 不询问/不代发
 - 主 pi 轮询只报状态（running/done/stopped），有新插话反馈才告知
 - `--status` 轮询与观看并行：用户实时观看不受主 pi 轮询影响
@@ -473,8 +474,8 @@ Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste �
 | 交互模式 | sayer `-i`：逐行累积、空行 Enter 提交、Ctrl-D 退出（下屏/主 pi 共用） | 用户 2026-08-31 实测反馈 |
 | 多行提交 | 交互模式空行提交（替代 bracketed paste——纯文本通道，无终端控制序列） | 2026-08-31 实测定 |
 | AGENTS.md.tpl | 已加「来自 human 的插话」节（权威输入语义） | 2026-08-30 定稿 |
-| 插话入口 | 独立命令 `agents-helper-human`（`/agents-helper-human <文本>`，prompt template $1 替换）；普通 user message = 与主 pi 对话 | 用户 2026-08-31 |
-| 插话迁移 | agents-helper-human 从 skill 迁到 prompt template（2026-08-31）：$1 直接替换进模板，机制上消除"参数被当指令"歧义（skill 的 args 是末尾追加，靠措辞约束）；效果好再迁另外两个 | 用户 2026-08-31 |
+| 插话入口 | 独立命令 `agents-helper-human`（扩展命令，零 LLM：handler spawn human_sayer + notify）；普通 user message = 与主 pi 对话 | 用户 2026-08-31 |
+| 插话迁移 | agents-helper-human 演化：skill（args 追加歧义）→ prompt template（$1 替换无歧义，实测）→ extension 命令（零 LLM，2026-08-31 定）；讨论目录由 discuss.sh --start 写 ~/.pi/agents-helper-current、--cleanup 删（扩展读取） | 用户 2026-08-31 |
 | tmux 入口 | 独立 skill `agents-helper-tmux`：用户明确指定才用，之后操作全在 tmux 内 | 用户 2026-08-31 |
 | pi-web 观看 | `!!human_viewer.py <dir> --follow` 流式实时（excludeFromContext，不进 LLM）；Esc 中断看说交替 | 用户 2026-08-31 改 pi-web + 实测 |
 | 主 pi 轮询 | 只报状态不转述全文；观看零 token | 用户 2026-08-31 |

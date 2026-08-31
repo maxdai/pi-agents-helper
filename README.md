@@ -151,7 +151,7 @@ npm 包 `pi-agents-helper` 提供三个 skill（**用户手动触发**）：
 | `/agents-helper-human "<文本>"` | **插话**（讨论进行中） | —（一条消息，立即发送） |
 
 讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
-`/agents-helper-human`（prompt template，`$1` 参数直接替换——无歧义）。
+`/agents-helper-human`（扩展命令，零 LLM 直接执行）。
 
 ### 观看方式（viewer 全文不进 LLM）
 

@@ -77,7 +77,8 @@ python3 /root/pi-agents-helper/human_viewer.py <讨论目录> --follow
 - 每次向用户简要报告**状态**即可（running/done/stopped）；有新 human 插话
   的反馈（agents 是否回应）时告知用户。
 
-**用户插话**：用户使用 `/agents-helper-human <文本>` 命令（独立 skill 立即转发）。主 pi 不主动询问、不代发。
+**用户插话**：用户输入 `/agents-helper-human <文本>`（扩展命令，零 LLM
+参与——直接本地执行 human_sayer，notify 反馈"已发送"）。主 pi 不主动询问、不代发。
 
 ### 4. 等待完成（可选）
 

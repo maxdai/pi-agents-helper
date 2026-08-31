@@ -73,6 +73,14 @@ cmd_cleanup() {
     local dir="$1"
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
+    # 若清理的是当前讨论，删除状态文件（agents-helper-human 扩展用）
+    if [ -f "$HOME/.pi/agents-helper-current" ]; then
+        local cur
+        cur="$(cat "$HOME/.pi/agents-helper-current" 2>/dev/null)"
+        if [ "$cur" = "$dir" ]; then
+            rm -f "$HOME/.pi/agents-helper-current"
+        fi
+    fi
 }
 
 cmd_view() {
@@ -334,6 +342,9 @@ SETTINGS_EOF
     if ! "$PYTHON" "$START_DISCUSSION" --dir "$dir_path" --skip-setup --start; then
         fail "讨论启动失败，请查看上方输出"
     fi
+
+    # 记录当前讨论目录（agents-helper-human 扩展读取；--cleanup 时删除）
+    echo "$dir_path" > "$HOME/.pi/agents-helper-current"
 
     cat <<OUTPUT_EOF
 讨论已启动
