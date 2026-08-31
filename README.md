@@ -22,12 +22,26 @@ pi-agents-helper/
 ├── fake_agent.py            # 测试薄壳（responder = 随机决策）
 ├── human_viewer.py          # 【human 通道】只读展示讨论进展
 ├── human_sayer.py           # 【human 通道】插话命令（含交互模式 -i）
+├── scripts/discuss.sh       # skill wrapper（prepare/start/status/wait/cleanup/view/say）
+├── skills/                  # 三个 skill（agents-helper / -tmux / -human）
+├── package.json             # npm 包 pi-agents-helper（pi.skills: ["./skills"]）
 ├── templates/               # 配置模板（AGENTS.md / agent 定义 / gitignore / spec）
 ├── tests/                   # 测试套件（unittest discover tests）
+├── AGENTS.md                # 项目开发指南（核心规则与结构）
 └── docs/pi-helper-design.md # 设计文档
 ```
 
 ## 快速开始
+
+### 用 skill（推荐，主 pi 会话内）
+
+```
+/skill:agents-helper "<问题>"                        # 默认模式启动讨论（pi-web 也可用）
+/skill:agents-helper-tmux "<问题>"                   # tmux 双屏模式（用户明确指定）
+/skill:agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
+```
+
+### 用命令行（直接操作）
 
 ```bash
 # 1. 创建并启动一个 2-agent 讨论
@@ -36,9 +50,8 @@ python3 start_discussion.py --dir mydisc \
   --topic "设计一个轻量任务队列的消息字段清单" \
   --pure --start
 
-# 2. 观看讨论（tmux 双屏：上屏实时展示，下屏 4 行插话输入）
-tmux new-session -s discuss-mydisc "python3 human_viewer.py discussion-mydisc --follow"
-tmux split-window -v -l 4 "python3 human_sayer.py discussion-mydisc -i"
+# 2. 观看讨论（全文实时滚动，不进 LLM）：任何终端
+python3 human_viewer.py discussion-mydisc --follow
 
 # 3. 阻塞等待完成，打印 result.md 路径
 python3 start_discussion.py --dir mydisc --wait
@@ -75,7 +88,7 @@ python3 human_sayer.py <base> -i                      # 交互模式（tmux 下�
 插话效果：agents 下次轮询即看到（触发响应）；已冻结 agent 不响应（发言锁）；
 human 每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加快配额耗尽）。
 
-### tmux 双屏形态（实测验证）
+### tmux 双屏形态（实测验证；由 agents-helper-tmux skill 启动）
 
 ```
 ┌────────────────────────────────┐
@@ -85,8 +98,10 @@ human 每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加�
 └────────────────────────────────┘
 ```
 
-主 pi 可一键启动 tmux session（`discuss-<时间戳>`），用户在任何终端
-`tmux attach -t <名字>` 直接观看/插话，随时 detach（讨论继续）。
+**用户明确指定才用**（`/skill:agents-helper-tmux`）：tmux 需要终端访问，
+pi-web 等无终端场景不可用。主 pi 一键启动 tmux session（`discuss-<时间戳>`）
+并提示 attach 命令；用户 attach 后观看/插话全在 tmux 内进行，随时 detach
+（讨论继续），主 pi 只轻量轮询等在 done 收尾。
 
 ## 参数详解（start_discussion.py）
 
@@ -131,7 +146,7 @@ npm 包 `pi-agents-helper` 提供三个 skill（**用户手动触发**）：
 
 | 入口 | 用途 | 观看方式 |
 |---|---|---|
-| `/skill:agents-helper "<问题>"` | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），查看进 LLM 零 token |
+| `/skill:agents-helper "<问题>"` | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），观看不进 LLM（零 token） |
 | `/skill:agents-helper-tmux "<问题>"` | **tmux 双屏模式**（用户明确指定） | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
 | `/skill:agents-helper-human "<文本>"` | **插话**（讨论进行中） | —（一条消息，立即发送） |
 
