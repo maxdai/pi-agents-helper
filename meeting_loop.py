@@ -10,6 +10,7 @@
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -26,6 +27,25 @@ class RecoverableWakeError(Exception):
     """可恢复的唤醒失败（如内存不足）——引擎应 sleep 后下轮重试，
     不进入"无产出→代写 freezing"路径（审核#2：临时内存压力不能变
     永久发言锁）。区别于 LLM 物理性无法产出（走代写兜底）。"""
+
+
+# 当前唤醒中的 pi 子进程句柄（SIGTERM 时 terminate，防孤儿残留）
+_current_proc = None
+
+
+def _handle_sigterm(sig, frame):
+    """SIGTERM：terminate 唤醒中的 pi 子进程后退出（用户 2026-09-01）。
+
+    kill loop → 子进程 pi 陪葬，不残留孤儿（实测教训：kill loop 后 pi
+    变孤儿继续跑）。若唤醒未进行（_current_proc 为 None）直接退出。
+    """
+    global _current_proc
+    if _current_proc is not None and _current_proc.poll() is None:
+        _current_proc.terminate()
+    raise SystemExit(0)
+
+
+signal.signal(signal.SIGTERM, _handle_sigterm)
 
 
 def log(agent, msg):
@@ -204,9 +224,16 @@ def wake_llm(workdir, agent, prompt, pure=False):
         f.write("CMD: " + " ".join(cmd) + "\n\nPROMPT:\n" + prompt + "\n")
     log(agent, f"唤醒 pi (session={sid})")
     _lock_git(workdir)
+    global _current_proc
     try:
-        r = subprocess.run(cmd, cwd=workdir, capture_output=True, text=True,
-                           timeout=MAX_WAKE_SEC)
+        proc = subprocess.Popen(cmd, cwd=workdir, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True)
+        _current_proc = proc
+        try:
+            out, err = proc.communicate(timeout=MAX_WAKE_SEC)
+        finally:
+            _current_proc = None
+        r = subprocess.CompletedProcess(cmd, proc.returncode, out, err)
     finally:
         _unlock_git(workdir)
 
