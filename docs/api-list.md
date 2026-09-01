@@ -204,13 +204,13 @@
 
 | # | 命令 | 功能定义 | 状态 |
 |---|---|---|---|
-| W1 | `--prepare "<问题>" [--background "<背景>"] [--agents N\|列表]` | 生成 spec（含 models.md 继承主 pi model/thinking）；human 保留名校验；输出 spec 路径 | 待测 |
-| W2 | `--start <spec>` | setup + 启动 N 个 loop 进程；输出讨论目录 + 完整 !! 观看命令 | 待测 |
-| W3 | `--view <dir> [--since <ref>]` | viewer 封装（增量展示） | 待测 |
-| W4 | `--say <dir> <文本>` | sayer 封装（插话） | 待测 |
-| W5 | `--status <dir>` | status 查询 | 待测 |
-| W6 | `--cleanup <dir>` | 清理（保存 result.md + 删目录） | 待测 |
-| W7 | `check_aft_bash` | aft bash:false 配置检查（缺失 → 4 行警告，不阻断） | 待测 |
+| W1 | `--prepare "<问题>" [--background "<背景>"] [--agents N\|列表]` | 生成 spec（含 models.md 继承主 pi model/thinking）；human 保留名校验；输出 spec 路径 | 已测(通过) |
+| W2 | `--start <spec>` | setup + 启动 N 个 loop 进程；输出讨论目录 + 完整 !! 观看命令 | 已测(通过) |
+| W3 | `--view <dir> [--since <ref>]` | viewer 封装（增量展示） | 已测(通过) |
+| W4 | `--say <dir> <文本>` | sayer 封装（插话） | 已测(通过) |
+| W5 | `--status <dir>` | status 查询 | 已测(通过) |
+| W6 | `--cleanup <dir>` | 清理（保存 result.md + 删目录） | 已测(通过) |
+| W7 | `check_aft_bash` | aft bash:false 配置检查（缺失 → 4 行警告，不阻断） | 已测(通过) |
 
 ---
 
