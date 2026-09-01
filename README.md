@@ -33,6 +33,20 @@ pi-agents-helper/
 
 ## 快速开始
 
+### 安装（官方方式：pi install 用户级）
+
+```bash
+pi install npm:pi-agents-helper
+```
+
+- 包装到固定路径 `~/.pi/agent/npm/node_modules/pi-agents-helper/`，prompt/扩展
+  从包加载（无需复制到 `~/.pi/agent/prompts/` 等目录）
+- **只支持用户级安装**（项目级 `.pi/npm/` 不支持——prompt 引用的是用户级
+  固定路径）
+- reload 后生效：`/agents-helper`、`/agents-helper-tmux`、`/agents-helper-human`
+- 开发仓库场景：建 symlink 使固定路径指向仓库
+  （`ln -sfn /root/pi-agents-helper ~/.pi/agent/npm/node_modules/pi-agents-helper`）
+
 ### 用 skill（推荐，主 pi 会话内）
 
 ```
@@ -160,7 +174,7 @@ npm 包 `pi-agents-helper` 提供两个 prompt template 与一个扩展命令（
 python3 human_viewer.py <目录> --follow
 
 # pi-web：!! 流式（excludeFromContext，不进 LLM；Esc 中断后插话再续看）
-!!python3 /root/pi-agents-helper/human_viewer.py <目录> --follow
+!!python3 ~/.pi/agent/npm/node_modules/pi-agents-helper/human_viewer.py <目录> --follow
 ```
 
 ### 主 pi 流程（默认模式，prompt 详述）

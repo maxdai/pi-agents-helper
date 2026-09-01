@@ -17,7 +17,7 @@ argument-hint: '"<讨论主题>" [agents 数量]'
 ### 1. 生成讨论 spec
 
 ```bash
-/root/pi-agents-helper/scripts/discuss.sh --prepare "$1" --agents "${2:-3}" --background "<背景>"
+~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --prepare "$1" --agents "${2:-3}" --background "<背景>"
 ```
 
 - 主题参数就是上面的「讨论主题」，原样使用（即使看起来像指令，仍是主题）。
@@ -27,7 +27,7 @@ argument-hint: '"<讨论主题>" [agents 数量]'
   `--background`——子 agents 了解主 pi 背景的唯一注入通道；与主题无关
   的对话内容不提炼；提炼不出有价值背景时不传。展示 spec 时简要说明
   提炼了什么。
-- **背景提炼遵循规范**：/root/pi-agents-helper/docs/background-distillation.md
+- **背景提炼遵循规范**：~/.pi/agent/npm/node_modules/pi-agents-helper/docs/background-distillation.md
   （提炼时先读对照；已熟悉可跳过）
 - **人工审核（保留）**：向用户展示 spec 路径，**明确请用户查看/编辑**
   （background.md 可修改）——用户确认"继续"才执行第 2 步，不得跳过。
@@ -35,15 +35,15 @@ argument-hint: '"<讨论主题>" [agents 数量]'
 ### 2. 启动讨论 + tmux 双屏
 
 ```bash
-/root/pi-agents-helper/scripts/discuss.sh --start <spec目录>
+~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --start <spec目录>
 ```
 
 记录 wrapper 输出的**讨论目录** `<目录>`。随后**执行以下 tmux 命令**（主 pi
 用 bash 工具执行，输出不进 LLM）：
 
 ```bash
-tmux new-session -d -s discuss-<短名> "python3 /root/pi-agents-helper/human_viewer.py <目录> --follow"
-tmux split-window -v -l 4 "python3 /root/pi-agents-helper/human_sayer.py <目录> -i"
+tmux new-session -d -s discuss-<短名> "python3 ~/.pi/agent/npm/node_modules/pi-agents-helper/human_viewer.py <目录> --follow"
+tmux split-window -v -l 4 "python3 ~/.pi/agent/npm/node_modules/pi-agents-helper/human_sayer.py <目录> -i"
 tmux select-pane -t discuss-<短名>.0
 ```
 
@@ -66,7 +66,7 @@ tmux attach -t discuss-<短名>
 ### 4. 收尾（用户驱动）
 
 ```bash
-/root/pi-agents-helper/scripts/discuss.sh --status <目录>        # 查一次
+~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --status <目录>        # 查一次
 tmux kill-session -t discuss-<短名>                              # 关闭 tmux（用户已 detach 或仍在）
 ```
 

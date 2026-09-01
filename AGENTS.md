@@ -102,17 +102,17 @@ meeting_loop 通过注入 responder 复用。human 插话不改变状态机—�
 4. **提交信息**：使用清晰、描述性的 message，说明本次改动内容。
 5. **skill 设计文档同步**：阶段 2 对 skill 的任何修改，必须同步更新设计文档。
 
-## skill/prompt/extension 安装维护（2026-08-31 定）
+## skill/prompt/extension 安装维护（2026-09-01 定）
 
-- **skill 安装**：复制快照到 `~/.pi/agent/skills/<名>/SKILL.md`（与源项目
-  meeting-discuss 同方式，非 npm 链接）
-- **prompt 安装**：复制到 `~/.pi/agent/prompts/<名>.md`（`/agents-helper` 等
-  命令入口）；删除/改名同样要同步删旧副本
-- **extension 安装**：复制到 `~/.pi/agent/extensions/<名>/index.ts`（如
-  agents-helper-human）；删除/改名同样要同步删旧副本
-- **绝对路径**：SKILL.md/prompt/extension 引用 wrapper 必须用绝对路径
-  （`/root/pi-agents-helper/scripts/discuss.sh`）——复制后相对路径会失效
-- **修改后必须重新复制**到对应安装位置才生效（快照不同步，易踩坑；
-  reload 后生效）
-- **当前形态**（2026-08-31）：prompt × 2（agents-helper、agents-helper-tmux）
-  + extension × 1（agents-helper-human）——skill 已全部迁出
+- **安装方式（官方）**：`pi install npm:pi-agents-helper`（用户级）——包装到
+  `~/.pi/agent/npm/node_modules/pi-agents-helper/`，pi 从包加载 prompt/扩展
+  （package.json 的 pi 键声明），无需复制到 `~/.pi/agent/{prompts,extensions}/`
+- **固定路径**：prompt 引用 wrapper/规范/viewer 用固定路径
+  `~/.pi/agent/npm/node_modules/pi-agents-helper/...`（只支持用户级安装）
+- **开发仓库**：建 symlink 使固定路径指向仓库（`ln -sfn /root/pi-agents-helper
+  ~/.pi/agent/npm/node_modules/pi-agents-helper`），改仓库代码即生效
+- **修改 prompt/扩展后 reload 生效**（pi 从包/仓库实时读取；本地路径注册
+  或 symlink 下无需重装）
+- **当前形态**（2026-09-01）：prompt × 2（agents-helper、agents-helper-tmux）
+  + extension × 1（agents-helper-human）——skill 已全部迁出；扩展
+  import.meta.url 自定位（方案 1）
