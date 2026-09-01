@@ -129,7 +129,7 @@
 | L11 | `_lock_git(workdir)` / `_unlock_git(workdir)` | .git ↔ .git.locked 原子改名（唤醒期防 LLM git 破坏）；recover_git_lock 兜底恢复 | 已测(通过) |
 | L12 | `wake_llm(workdir, agent, prompt, pure)` | spawn pi（--mode json --session-id --approve --print 等）；分片 communicate（15s）检测 repo.git 消失 → _kill_proc + SystemExit(0)；总超时 → _kill_proc + TimeoutExpired；正常 → parse session + save + returncode 分支（No session found 清 status）；返回 (new_sid, returncode) | 已测(通过) |
 | L13 | `make_responder(pure)` | 构造 responder：finalizing → 写 result.md 提示；RR → pass 提示；meeting → 消息路径提示；内存不足 → RecoverableWakeError；调 wake_llm | 已测(通过) |
-| L14 | `_preserve_result_md(workdir)` | bare HEAD:result.md → 父级 <base名>-result.md；无 → 跳过 | 已测(发现 bug: 函数体引用未定义 agent → NameError，写文件后 log 行崩溃；生产可达 rw 退出路径；待修复) |
+| L14 | `_preserve_result_md(workdir)` | bare HEAD:result.md → 父级 <base名>-result.md；无 → 跳过 | 已测→修复(2026-09-01: log 去 agent 参数)+复测(通过) |
 
 **loop 关键边界/异常**：
 - L3：terminate 后 poll 已退出 → 不 kill；communicate 超时 → kill + 再 communicate

@@ -333,16 +333,11 @@ class TestMiscLoop(unittest.TestCase):
             meeting_loop.recover_git_lock(work, "a")
             self.assertTrue(os.path.exists(os.path.join(work, ".git")))
 
-    @unittest.expectedFailure
     def test_preserve_result_md(self):
         """L14：bare HEAD:result.md → 父级 <base名>-result.md。
 
-        【发现 bug 2026-09-01，待修复（测试阶段不改代码）】
-        _preserve_result_md(workdir) 函数体引用未定义变量 agent
-        （log(agent, ...)）——result.md 存在时走到该行 → NameError。
-        生产可达：__main__ 中 resultWriter 的 loop 退出时调用。
-        影响：写文件已成功（log 在写后），但进程以异常退出（traceback +
-        非零退出码）。修复建议：log 去掉 agent 参数（函数无 agent 上下文）。
+        修复 2026-09-01（测试报告问题 1）：原函数体引用未定义 agent
+        → NameError（expectedFailure 记录）；修复后正常通过。
         """
         import subprocess as sp
         tmp = tempfile.mkdtemp(prefix="preserve-")
@@ -356,6 +351,19 @@ class TestMiscLoop(unittest.TestCase):
             sp.run(["git", "clone", bare, w], check=True, capture_output=True)
             sp.run(["git", "config", "user.name", "t"], cwd=w, check=True)
             sp.run(["git", "config", "user.email", "t@t"], cwd=w, check=True)
+            # setup commit + push（空 bare 无 HEAD，先提交）
+            with open(os.path.join(w, "protocol.json"), "w") as f:
+                f.write("{}")
+            sp.run(["git", "add", "-A"], cwd=w, check=True, capture_output=True)
+            sp.run(["git", "commit", "-m", "setup"], cwd=w, check=True,
+                   capture_output=True)
+            sp.run(["git", "push", "origin", "HEAD"], cwd=w, check=True,
+                   capture_output=True)
+            # bare 无 result.md → 跳过（不建文件）
+            meeting_loop._preserve_result_md(w)
+            saved = os.path.join(tmp, "disc-x-result.md")
+            self.assertFalse(os.path.exists(saved))
+            # 提交 result.md 后 → 保存到父级
             with open(os.path.join(w, "result.md"), "w") as f:
                 f.write("# 结论\n\n内容" * 20)
             sp.run(["git", "add", "-A"], cwd=w, check=True, capture_output=True)
@@ -364,12 +372,7 @@ class TestMiscLoop(unittest.TestCase):
             sp.run(["git", "push", "origin", "HEAD"], cwd=w, check=True,
                    capture_output=True)
             meeting_loop._preserve_result_md(w)
-            saved = os.path.join(tmp, "disc-x-result.md")
             self.assertTrue(os.path.exists(saved))
-            # 无 result.md → 跳过（不建文件）
-            os.remove(saved)
-            meeting_loop._preserve_result_md(w)
-            self.assertFalse(os.path.exists(saved))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

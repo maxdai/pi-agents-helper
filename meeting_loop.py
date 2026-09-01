@@ -344,7 +344,11 @@ def _preserve_result_md(workdir):
                         f"{base_name}-result.md")
     with open(dest, "w") as f:
         f.write(r.stdout)
-    log(agent, f"已保存 result.md → {dest}")
+    # 修复 2026-09-01（测试报告问题 1）：函数无 agent 上下文——
+    # 原引用未定义变量 agent → NameError（写文件成功后 log 行崩溃，
+    # 进程异常退出）。log 需要 agent 名参数，此处直接用模块 log 的
+    # 全局格式打印（不带 agent 前缀）。
+    print(f"[{time.strftime('%H:%M:%S')}] 已保存 result.md → {dest}", flush=True)
 
 
 if __name__ == "__main__":
