@@ -42,7 +42,7 @@ pi install npm:pi-agents-helper
 - 包装到固定路径 `~/.pi/agent/npm/node_modules/pi-agents-helper/`，prompt/扩展
   从包加载（无需复制到 `~/.pi/agent/prompts/` 等目录）
 - **只支持用户级安装**（项目级 `.pi/npm/` 不支持——prompt 引用的是用户级
-  固定路径）
+  固定路径；项目级安装会导致 prompt 来源与命令路径分离，命令全部失效）
 - reload 后生效：`/agents-helper`、`/agents-helper-tmux`、`/agents-helper-human`
 - 开发仓库场景：建 symlink 使固定路径指向仓库
   （`ln -sfn /root/pi-agents-helper ~/.pi/agent/npm/node_modules/pi-agents-helper`）
