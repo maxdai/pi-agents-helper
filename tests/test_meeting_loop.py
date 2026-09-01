@@ -9,6 +9,7 @@ wake_llm）——修改零覆盖，必须补本测试保证核心唤醒功能三
 4. SIGTERM handler → terminate 唤醒中的 pi + SystemExit
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -24,10 +25,12 @@ import meeting_loop  # noqa: E402
 class FakeProc:
     """模拟 pi 子进程：communicate 行为可配置。"""
 
-    def __init__(self, behavior, sticky_terminate=False):
+    def __init__(self, behavior, sticky_terminate=False, rc=0, out="OUT", err="ERR"):
         self.behavior = behavior  # ok | timeout-then-removed | always-timeout
         self.sticky_terminate = sticky_terminate  # terminate 后仍不退出（测 kill 兜底）
-        self.returncode = 0
+        self.returncode = rc
+        self.out_text = out
+        self.err_text = err
         self.terminated = False
         self.killed = False
         self.calls = 0
@@ -40,7 +43,7 @@ class FakeProc:
             # 模拟 terminate 无效：communicate 始终超时（触发 kill 兜底）
             raise subprocess.TimeoutExpired("pi", timeout)
         if self.behavior == "ok":
-            return ("OUT", "ERR")
+            return (self.out_text, self.err_text)
         if self.behavior == "timeout-then-removed":
             if self.calls == 1:
                 raise subprocess.TimeoutExpired("pi", timeout)
@@ -125,6 +128,44 @@ class TestWakeLlm(unittest.TestCase):
             self._run(proc, repo_git_exists=False)
         self.assertEqual(cm.exception.code, 0)
         self.assertTrue(proc.terminated)
+
+    def test_normal_returns_saves_session(self):
+        """正常路径完整功能：返回 (sid, 0) + status 文件写入。"""
+        proc = FakeProc("ok")
+        result = self._run(proc)
+        sid = meeting_loop.session_id(self.workdir, "a")
+        self.assertEqual(result, (sid, 0))
+        status = os.path.join(self.base, "status-a.json")
+        self.assertTrue(os.path.exists(status))
+        with open(status) as f:
+            self.assertEqual(json.load(f), {"sessionID": sid})
+
+    def test_parse_session_header(self):
+        """parse_session：解析 pi JSON 输出的 session 头。"""
+        stdout = '{"type":"session","id":"abc123"}\n{"type":"message"}\n'
+        self.assertEqual(meeting_loop.parse_session(stdout), "abc123")
+        self.assertIsNone(meeting_loop.parse_session("no json here"))
+
+    def test_no_session_found_clears_status(self):
+        """stderr 含 No session found：删 status 文件（下轮重建）+ 返回。"""
+        # 预置 status 文件（模拟已有 session）
+        status = os.path.join(self.base, "status-a.json")
+        with open(status, "w") as f:
+            json.dump({"sessionID": "old"}, f)
+        proc = FakeProc("ok", rc=1, out="", err="Error: No session found")
+        result = self._run(proc)
+        self.assertEqual(result[1], 1)
+        self.assertFalse(os.path.exists(status))
+
+    def test_returncode_error_keeps_status(self):
+        """returncode != 0 且非 session 错误：status 保留（可诊断）。"""
+        status = os.path.join(self.base, "status-a.json")
+        with open(status, "w") as f:
+            json.dump({"sessionID": "old"}, f)
+        proc = FakeProc("ok", rc=1, out="", err="boom")
+        result = self._run(proc)
+        self.assertEqual(result[1], 1)
+        self.assertTrue(os.path.exists(status))
 
 
 class TestSigtermHandler(unittest.TestCase):
