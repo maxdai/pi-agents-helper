@@ -481,6 +481,7 @@ Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste �
 | 观看命令输出 | wrapper --start 输出完整 `!!python3 ... --follow` 命令（含路径），主 pi 原样展示供复制 | 用户 2026-08-31 |
 | 讨论目录发现 | 方案 3（用户 2026-08-31 定）：零状态文件——wrapper 目录名 = discuss-<PI_SESSION_ID>-<时间戳>（aft 不再替换 bash 后 PI_SESSION_ID 注入可用）；扩展用 ctx.sessionManager.getSessionId() + glob cwd/discuss-<sid>-* 取最新；session 隔离彻底（同目录多 session 也互不干扰）。历程：全局文件 → 项目下文件（aft 替换 bash 时代，sid 拿不到）→ cwd+sid 推导 | 用户 2026-08-31 |
 | models.md 读取 | 环境变量优先（PI_PROVIDER/PI_MODEL/PI_REASONING_LEVEL，aft 改动后可用的当前生效值），session 文件解析降为兜底 | 用户 2026-08-31 |
+| agents 参数化 | prompt 第二参数 $2 = agents 数量（默认 3）；wrapper --prepare --agents（名称列表 "a,b,c" 或纯数字 "4"→a..<n>，上限 26，默认 DEFAULT_AGENTS）；question.md 立场行/models.md/agents/*.md/.order 四处按列表循环；human 保留名校验在 wrapper；立场行 printf 以 - 开头被当选项 → printf '%b'（实测暴露） | 用户 2026-09-01 |
 | tmux 入口 | 独立 skill `agents-helper-tmux`：用户明确指定才用，之后操作全在 tmux 内 | 用户 2026-08-31 |
 | pi-web 观看 | `!!human_viewer.py <dir> --follow` 流式实时（excludeFromContext，不进 LLM）；Esc 中断看说交替 | 用户 2026-08-31 改 pi-web + 实测 |
 | 主 pi 轮询 | 只报状态不转述全文；观看零 token | 用户 2026-08-31 |

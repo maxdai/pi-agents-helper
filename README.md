@@ -36,8 +36,8 @@ pi-agents-helper/
 ### 用 skill（推荐，主 pi 会话内）
 
 ```
-/agents-helper "<问题>"                        # 默认模式启动讨论（pi-web 也可用）
-/agents-helper-tmux "<问题>"                   # tmux 双屏模式（用户明确指定）
+/agents-helper "<问题>" [agents 数量]        # 默认模式启动讨论（pi-web 也可用）
+/agents-helper-tmux "<问题>" [agents 数量]      # tmux 双屏模式（用户明确指定）
 /agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
 ```
 
@@ -146,8 +146,8 @@ npm 包 `pi-agents-helper` 提供两个 prompt template 与一个扩展命令（
 
 | 入口 | 形态 | 用途 | 观看方式 |
 |---|---|---|---|
-| `/agents-helper "<问题>"` | prompt | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），观看不进 LLM（零 token） |
-| `/agents-helper-tmux "<问题>"` | prompt | **tmux 双屏模式**（用户明确指定） | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
+| `/agents-helper "<问题>" [agents 数量]` | prompt | **默认模式**（pi-web/无终端可用）；`agents 数量` 可选（默认 3，数字或名称列表） | 本地 viewer（见下），观看不进 LLM（零 token） |
+| `/agents-helper-tmux "<问题>" [agents 数量]` | prompt | **tmux 双屏模式**（用户明确指定）；`agents 数量` 可选 | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
 | `/agents-helper-human "<文本>"` | extension | **插话**（讨论进行中） | —（一条消息，立即发送） |
 
 讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
