@@ -78,27 +78,27 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| E1 | `participants(workdir)` | protocol.json → participants 列表 | 待测 |
-| E2 | `result_writer(workdir)` | protocol.json → resultWriter（缺省 = 最后参与者） | 待测 |
-| E3 | `_each_agent_messages(bare, agents)` | bare 树每 agent 完整消息列表（fm 按序号升序）；cat-file 批量读；parse 失败跳过；无消息 → {a: []} | 待测 |
-| E4 | `_cat_batch(bare, paths)` | git cat-file --batch 批量读 → {path: content}；二进制字节读（中文安全）；missing → 跳过；异常安全（stdin 关闭 + wait） | 待测 |
-| E5 | `_each_agent_last(bare, agents)` | 每 agent 最后一条 {type, mode, next}；无消息 → None | 待测 |
-| E6 | `aggregate_mode(bare, agents)` | 引擎版聚合（stall 分支用，调 core C9） | 待测 |
-| E7 | `rr_next_speaker(bare, agents)` | RR 下一位：HEAD 是参与者消息 → 原语义（git log -1 + 最后消息文件 next）；HEAD 是 human → 逐 commit 回退找最近参与者消息的 next；找不到 → None | 待测 |
-| E8 | `rr_active_count(messages, agents)` | starter 的 mode==round-robin 消息数（RR 轮数） | 待测 |
-| E9 | `_meeting_speak_count(messages, agent)` | agent 的 mode==meeting 且 type==message 消息数（配额） | 待测 |
-| E10 | `human_msg_count(bare)` | bare 中 human/ 下消息文件数（配额增量） | 待测 |
-| E11 | `_produced(workdir, agent, before)` | 我的消息数 > before（产出判定） | 待测 |
-| E12 | `write_af_if_no_rr(bare, workdir, agent, agents)` | 写 af 前 pull + 重检：bare 已有 RR（任一最后一条 mode==round-robin）→ 放弃；否则写 af | 待测 |
-| E13 | `write_protocol_signal(workdir, agent, type_, mode, next_=None)` | 写流程控制消息：写前 pull + 重取 head；seen_at = 读取点或 head 兜底；pass 带 next 链；validate(协议路径) + commit + push | 待测 |
-| E14 | `respond_with_fallback(workdir, agent, responder, head, meta, is_first, rr_turn, before, agents)` | 一次响应轮：responder → commit_new_files → 查产出；无产出重试 MAX_RETRY；仍失败 → loop 代写（RR→pass 带 next / meeting→freezing）；代写返回 False | 待测 |
-| E15 | `commit_new_files(workdir, agent, head, mode)` | 校验/补全 agent 写的内容文件 + commit + push：无 frontmatter → 删除等待重写；type 非法 → 删除拦截；RR 阶段 pass/message 补 next（无条件覆盖顺序下一位）；serialize 重写 | 待测 |
-| E16 | `_is_committed(workdir, path)` | 文件是否 tracked（已提交）；modified 的 tracked 文件仍视为已提交 | 待测 |
-| E17 | `_stall_elapsed(bare, agents, last_head, last_head_time, head)` | 无进展累计：无消息文件 → 不累计（0, head, now）；HEAD 未变 → 累计；HEAD 变 → 重置 | 待测 |
-| E18 | `_result_md_valid(result_path)` | result.md 存在 + 非空 + >50 字符 | 待测 |
-| E19 | `finalize_discussion(workdir, agent, responder, head, reason)` | 收尾：唤醒 rw 写 result.md → 校验 → 重试 MAX_RETRY → 仍无效 loop 兜底代写 → commit result.md → 写 concluded | 待测 |
-| E20 | `_commit_result_md(workdir, agent, subject)` | 幂等提交 result.md：status --porcelain 有改动才 commit（无改动跳过） | 待测 |
-| E21 | `agent_loop(workdir, agent, responder, max_meeting, max_rr, poll_interval, stall_timeout)` | 主状态机：①repo.git 消失→退出 ②concluded→退出 ③stall 超时→rw 收尾/非 rw 接管仲裁 ④全员冻结→写 af ⑤all-freezing→starter 启动 RR（有新消息唤醒/pass 确定性写）⑥RR：全员 pass→rw 收尾、max_rr 兜底、next 驱动、无新消息确定性 pass ⑦meeting：首启/配额耗尽冻结/触发/唯一未冻结冻结/发言锁/配额内响应；异常不终止循环 | 待测 |
+| E1 | `participants(workdir)` | protocol.json → participants 列表 | 已测(通过) |
+| E2 | `result_writer(workdir)` | protocol.json → resultWriter（缺省 = 最后参与者） | 已测(通过) |
+| E3 | `_each_agent_messages(bare, agents)` | bare 树每 agent 完整消息列表（fm 按序号升序）；cat-file 批量读；parse 失败跳过；无消息 → {a: []} | 已测(通过) |
+| E4 | `_cat_batch(bare, paths)` | git cat-file --batch 批量读 → {path: content}；二进制字节读（中文安全）；missing → 跳过；异常安全（stdin 关闭 + wait） | 已测(通过) |
+| E5 | `_each_agent_last(bare, agents)` | 每 agent 最后一条 {type, mode, next}；无消息 → None | 已测(通过) |
+| E6 | `aggregate_mode(bare, agents)` | 引擎版聚合（stall 分支用，调 core C9） | 已测(通过) |
+| E7 | `rr_next_speaker(bare, agents)` | RR 下一位：HEAD 是参与者消息 → 原语义（git log -1 + 最后消息文件 next）；HEAD 是 human → 逐 commit 回退找最近参与者消息的 next；找不到 → None | 已测(通过) |
+| E8 | `rr_active_count(messages, agents)` | starter 的 mode==round-robin 消息数（RR 轮数） | 已测(通过) |
+| E9 | `_meeting_speak_count(messages, agent)` | agent 的 mode==meeting 且 type==message 消息数（配额） | 已测(通过) |
+| E10 | `human_msg_count(bare)` | bare 中 human/ 下消息文件数（配额增量） | 已测(通过) |
+| E11 | `_produced(workdir, agent, before)` | 我的消息数 > before（产出判定） | 已测(通过) |
+| E12 | `write_af_if_no_rr(bare, workdir, agent, agents)` | 写 af 前 pull + 重检：bare 已有 RR（任一最后一条 mode==round-robin）→ 放弃；否则写 af | 已测(通过) |
+| E13 | `write_protocol_signal(workdir, agent, type_, mode, next_=None)` | 写流程控制消息：写前 pull + 重取 head；seen_at = 读取点或 head 兜底；pass 带 next 链；validate(协议路径) + commit + push | 已测(通过) |
+| E14 | `respond_with_fallback(workdir, agent, responder, head, meta, is_first, rr_turn, before, agents)` | 一次响应轮：responder → commit_new_files → 查产出；无产出重试 MAX_RETRY；仍失败 → loop 代写（RR→pass 带 next / meeting→freezing）；代写返回 False | 已测(通过) |
+| E15 | `commit_new_files(workdir, agent, head, mode)` | 校验/补全 agent 写的内容文件 + commit + push：无 frontmatter → 删除等待重写；type 非法 → 删除拦截；RR 阶段 pass/message 补 next（无条件覆盖顺序下一位）；serialize 重写 | 已测(通过) |
+| E16 | `_is_committed(workdir, path)` | 文件是否 tracked（已提交）；modified 的 tracked 文件仍视为已提交 | 已测(通过) |
+| E17 | `_stall_elapsed(bare, agents, last_head, last_head_time, head)` | 无进展累计：无消息文件 → 不累计（0, head, now）；HEAD 未变 → 累计；HEAD 变 → 重置 | 已测(通过) |
+| E18 | `_result_md_valid(result_path)` | result.md 存在 + 非空 + >50 字符 | 已测(通过) |
+| E19 | `finalize_discussion(workdir, agent, responder, head, reason)` | 收尾：唤醒 rw 写 result.md → 校验 → 重试 MAX_RETRY → 仍无效 loop 兜底代写 → commit result.md → 写 concluded | 已测(通过) |
+| E20 | `_commit_result_md(workdir, agent, subject)` | 幂等提交 result.md：status --porcelain 有改动才 commit（无改动跳过） | 已测(通过) |
+| E21 | `agent_loop(workdir, agent, responder, max_meeting, max_rr, poll_interval, stall_timeout)` | 主状态机：①repo.git 消失→退出 ②concluded→退出 ③stall 超时→rw 收尾/非 rw 接管仲裁 ④全员冻结→写 af ⑤all-freezing→starter 启动 RR（有新消息唤醒/pass 确定性写）⑥RR：全员 pass→rw 收尾、max_rr 兜底、next 驱动、无新消息确定性 pass ⑦meeting：首启/配额耗尽冻结/触发/唯一未冻结冻结/发言锁/配额内响应；异常不终止循环 | 已测(集成:test_meeting_v2+fake_agent 全链+组合链) |
 
 **engine 关键边界/异常**：
 - E7：HEAD 是 human 且往前无参与者消息 → None；HEAD 参与者但 fm 不可用 → None；
