@@ -41,8 +41,25 @@ def _handle_sigterm(sig, frame):
     """
     global _current_proc
     if _current_proc is not None and _current_proc.poll() is None:
-        _current_proc.terminate()
+        _kill_proc(_current_proc)
     raise SystemExit(0)
+
+
+def _kill_proc(proc):
+    """终止子进程：先 SIGTERM，5s 未退再 SIGKILL（兜底必杀）。
+
+    实测教训（2026-09-01 e2e）：communicate() 无超时等 terminate 会
+    永久卡死（pi 不响应 SIGTERM 时，wchan do_sys_poll 空转 36s+）。
+    subprocess.run(timeout) 的原语义 = 超时 kill 强杀，此处对齐。
+    """
+    if proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
 
 
 signal.signal(signal.SIGTERM, _handle_sigterm)
@@ -244,13 +261,12 @@ def wake_llm(workdir, agent, prompt, pure=False):
                 except subprocess.TimeoutExpired:
                     if not os.path.isdir(os.path.join(base, "repo.git")):
                         log(agent, "讨论目录已清理——终止唤醒中的 pi")
-                        proc.terminate()
-                        proc.communicate()
+                        _kill_proc(proc)
                         raise SystemExit(0)  # 干净退出（SystemExit 不被 except 捕获）
             if not normal:
-                # 总超时：保持原语义（run(timeout) 抛 TimeoutExpired → 上层可恢复重试）
-                proc.terminate()
-                proc.communicate()
+                # 总超时：保持原语义（run(timeout) 超时 = kill 强杀 + 抛
+                # TimeoutExpired → 上层可恢复重试）
+                _kill_proc(proc)
                 raise subprocess.TimeoutExpired(cmd, MAX_WAKE_SEC)
         finally:
             _current_proc = None

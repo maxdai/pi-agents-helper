@@ -47,6 +47,9 @@ class FakeProc:
     def terminate(self):
         self.terminated = True
 
+    def kill(self):
+        self.terminated = True
+
 
 class TestWakeLlm(unittest.TestCase):
     def setUp(self):
