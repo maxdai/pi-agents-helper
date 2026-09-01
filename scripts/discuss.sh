@@ -127,7 +127,7 @@ cmd_view() {
         "$PYTHON" "$HUMAN_VIEWER" "$dir"
     fi
     # HEAD 游标（主 pi 记录作下轮 --since；无状态，不写游标文件——
-    # 与 tmux --follow 的 .viewer-cursor 互不干扰）
+    # 与 --follow 的 .viewer-cursor 互不干扰）
     echo "HEAD=$(git -C "$dir/repo.git" rev-parse HEAD)"
 }
 

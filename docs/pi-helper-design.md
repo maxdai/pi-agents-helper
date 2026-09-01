@@ -294,49 +294,13 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
   阶段 3 skill 中主 pi 的 TUI 即壳（viewer → tool output 展示、
   sayer → tool 插话）——不另做 curses UI
 
-### 5.1.1 tmux 双屏形态（辅助方法，实测验证 2026-08-30）
+### 5.1.1 tmux 双屏形态（**已放弃 2026-09-01**，用户决定）
 
-**零开发的壳形态**：tmux 上下双屏——上屏 `human_viewer --follow`（实时
-展示），下屏 `human_sayer -i`（交互插话，4 行）。实测通过：插话实时上屏、
-agents 响应、状态变化显示、done 自动退出。
-
-**skill 入口：`/agents-helper-tmux`——用户明确指定才用**（用户
-2026-08-31 定）：tmux 需要用户能访问终端（pi-web 无终端时不可用），
-因此默认模式（`agents-helper`）不碰 tmux；用户主动要求 tmux 双屏时
-用本 skill。主 pi 启动 tmux + 提示 attach 命令后，**之后的操作都在
-tmux 内进行**；主 pi 只轻量 status 轮询等 done 收尾。
-
-```
-┌────────────────────────────────┐
-│ 上屏：human_viewer --follow     │  ← 新消息/状态变化实时展示，done 自动退出
-├────────────────────────────────┤
-│ 下屏（4 行）：human_sayer -i    │  ← 输入即插话（空行提交）
-└────────────────────────────────┘
-```
-
-**主 pi 启动流程**（用户 2026-08-30 定）：
-
-```
-主 pi：start_discussion（创建+启动）→ tmux new-session -d -s discuss-<ts>
-      （上屏 viewer --follow / 下屏 sayer -i，下屏 -l 4 固定 4 行）
-      → 告知用户 attach 命令（tmux attach -t discuss-<ts>）
-用户：另一终端 tmux attach → 直接观看/插话（随时 detach，讨论继续）
-主 pi：轻量轮询 --status → done → 通知用户 → kill tmux → 读 result.md
-      → 清理
-```
-
-关键点：
-- session 常驻：用户 detach 不影响（viewer 持续轮询）
-- 命名唯一（discuss-<时间戳>），pi 告知用户 attach 命令
-- 多终端共享：tmux 多人 attach 同一 session（共享屏幕）
-- 实测注意：split-window 后当前 pane 变为新 pane，tmux 命令需显式带
-  pane 索引（-t session.N）；new-session 直接跑 viewer 偶发退出
-  （不可复现），可靠用法是进 shell 后发送 viewer 命令
-
-**与 skill 的关系**：阶段 3 三种 skill 入口——`agents-helper`（默认模式，
-主通道）、`agents-helper-tmux`（tmux 双屏，用户明确指定）、
-`agents-helper-human`（插话专用）。tmux 模式中观看与插话全在 tmux 内，
-不经主 pi/LLM。
+曾作为辅助壳形态（上屏 `human_viewer --follow` / 下屏 `human_sayer -i`，
+由 `/agents-helper-tmux` prompt 启动，实测验证通过）。**放弃原因**：主 pi
+代理形态（默认模式）已成熟——观看走 `!!` 流式（零 token）、插话走扩展
+（零 LLM），tmux 形态无独立价值；pi-web 等无终端场景本来就用不了。
+`human_sayer -i` 交互模式**保留**（终端手动插话仍可用，无危害）。
 
 ### 5.1.2 默认模式（主通道，阶段 3 skill 核心）
 
@@ -410,7 +374,7 @@ python3 human_sayer.py <base> <文本>      # 单次插话（文本可多行：�
 python3 human_sayer.py <base> -i          # 交互模式（实测新增，用户 2026-08-31）
 ```
 
-**交互模式 -i**（tmux 下屏/主 pi 共用）：逐行累积、**空行 Enter 提交**、
+**交互模式 -i**（终端手动插话）：逐行累积、**空行 Enter 提交**、
 Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste 方案：纯
 文本通道无终端控制序列）；实测用户反馈驱动（下屏 shell 敲命令不直观
 → 输入即插话）。
@@ -484,6 +448,7 @@ Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste �
 | agents 参数化 | prompt 第二参数 $2 = agents 数量（默认 3）；wrapper --prepare --agents（名称列表 "a,b,c" 或纯数字 "4"→a..<n>，上限 26，默认 DEFAULT_AGENTS）；question.md 立场行/models.md/agents/*.md/.order 四处按列表循环；human 保留名校验在 wrapper；立场行 printf 以 - 开头被当选项 → printf '%b'（实测暴露） | 用户 2026-09-01 |
 | 路径方案 | 固定路径（用户 2026-09-01 定）：prompt 引用 wrapper/规范/viewer 用固定路径 ~/.pi/agent/npm/node_modules/pi-agents-helper/...（pi install 用户级安装路径固定，零脚本零副本；只支持用户级安装，项目级不支持）；开发机建 symlink 指向仓库。postinstall 渲染否决（副本生命周期=新持久状态+事实源分裂+开发机分叉+脚本环境依赖）；工具方案否决（LLM 多一步流程控制，用户不希望依赖 LLM 控制流程） | 用户 2026-09-01 |
 | tmux 入口 | 独立 skill `agents-helper-tmux`：用户明确指定才用，之后操作全在 tmux 内 | 用户 2026-08-31 |
+| 放弃 tmux | **整个 tmux 形态放弃（2026-09-01）**：删 prompts/agents-helper-tmux.md；主 pi 代理形态已成熟（!! 流式观看 + 扩展插话），tmux 无独立价值。human_sayer -i 交互模式保留（终端手动插话无害）；README/AGENTS.md/背景规范引用同步清理。决策记录历史条目（tmux 双屏/定位/下屏高度/入口）保留为历史 | 用户 2026-09-01 |
 | pi-web 观看 | `!!human_viewer.py <dir> --follow` 流式实时（excludeFromContext，不进 LLM）；Esc 中断看说交替 | 用户 2026-08-31 改 pi-web + 实测 |
 | 主 pi 轮询 | 只报状态不转述全文；观看零 token | 用户 2026-08-31 |
 

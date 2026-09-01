@@ -139,6 +139,6 @@ AGENTS.md + api-list.md 恢复。
   ~/.pi/agent/npm/node_modules/pi-agents-helper`），改仓库代码即生效
 - **修改 prompt/扩展后 reload 生效**（pi 从包/仓库实时读取；本地路径注册
   或 symlink 下无需重装）
-- **当前形态**（2026-09-01）：prompt × 2（agents-helper、agents-helper-tmux）
-  + extension × 1（agents-helper-human）——skill 已全部迁出；扩展
-  import.meta.url 自定位（方案 1）
+- **当前形态**（2026-09-01）：prompt × 1（agents-helper）+ extension × 1
+  （agents-helper-human）——skill 已全部迁出；扩展 import.meta.url
+  自定位（方案 1）；tmux 形态已放弃（agents-helper-tmux 已删）

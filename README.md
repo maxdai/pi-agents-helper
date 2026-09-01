@@ -23,8 +23,9 @@ pi-agents-helper/
 ├── human_viewer.py          # 【human 通道】只读展示讨论进展
 ├── human_sayer.py           # 【human 通道】插话命令（含交互模式 -i）
 ├── scripts/discuss.sh       # skill wrapper（prepare/start/status/wait/cleanup/view/say）
-├── skills/                  # 三个 skill（agents-helper / -tmux / -human）
-├── package.json             # npm 包 pi-agents-helper（pi.skills: ["./skills"]）
+├── prompts/                 # prompt 模板（agents-helper）
+├── extensions/              # pi 扩展（agents-helper-human 插话）
+├── package.json             # npm 包 pi-agents-helper（pi.prompts + pi.extensions）
 ├── templates/               # 配置模板（AGENTS.md / agent 定义 / gitignore / spec）
 ├── tests/                   # 测试套件（unittest discover tests）
 ├── AGENTS.md                # 项目开发指南（核心规则与结构）
@@ -43,7 +44,7 @@ pi install npm:pi-agents-helper
   从包加载（无需复制到 `~/.pi/agent/prompts/` 等目录）
 - **只支持用户级安装**（项目级 `.pi/npm/` 不支持——prompt 引用的是用户级
   固定路径；项目级安装会导致 prompt 来源与命令路径分离，命令全部失效）
-- reload 后生效：`/agents-helper`、`/agents-helper-tmux`、`/agents-helper-human`
+- reload 后生效：`/agents-helper`、`/agents-helper-human`
 - 开发仓库场景：建 symlink 使固定路径指向仓库
   （`ln -sfn /root/pi-agents-helper ~/.pi/agent/npm/node_modules/pi-agents-helper`）
 
@@ -59,7 +60,6 @@ ls ~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh  # 文件存
 
 ```
 /agents-helper "<问题>" [agents 数量]        # 默认模式启动讨论（pi-web 也可用）
-/agents-helper-tmux "<问题>" [agents 数量]      # tmux 双屏模式（用户明确指定）
 /agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
 ```
 
@@ -102,28 +102,13 @@ python3 human_viewer.py <base> --follow         # 循环展示直到讨论结束
 ```bash
 python3 human_sayer.py <base> "插话文本"              # 单次插话
 echo "多行文本" | python3 human_sayer.py <base>       # stdin 多行
-python3 human_sayer.py <base> -i                      # 交互模式（tmux 下屏推荐）
+python3 human_sayer.py <base> -i                      # 交互模式（终端手动插话）
 ```
 
 交互模式：逐行累积、**空行 Enter 提交**、Ctrl-D 退出——输入即插话，无需命令行。
 
 插话效果：agents 下次轮询即看到（触发响应）；已冻结 agent 不响应（发言锁）；
 human 每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加快配额耗尽）。
-
-### tmux 双屏形态（实测验证；由 agents-helper-tmux prompt 启动）
-
-```
-┌────────────────────────────────┐
-│ 上屏：human_viewer --follow     │  ← 新消息/状态变化实时展示，done 自动退出
-├────────────────────────────────┤
-│ 下屏（4 行）：human_sayer -i    │  ← 输入即插话（空行提交）
-└────────────────────────────────┘
-```
-
-**用户明确指定才用**（`/agents-helper-tmux`）：tmux 需要终端访问，
-pi-web 等无终端场景不可用。主 pi 一键启动 tmux session（`discuss-<时间戳>`）
-并提示 attach 命令；用户 attach 后观看/插话全在 tmux 内进行，随时 detach
-（讨论继续），主 pi 只轻量轮询等在 done 收尾。
 
 ## 参数详解（start_discussion.py）
 
@@ -160,7 +145,7 @@ meeting（自由发言）→ all-freezing（冻结级联）→ round-robin（RR 
 ## 设计文档
 
 - `docs/pi-helper-design.md`：完整设计（信息层/流程层分离、各阶段行为推演、
-  配额语义、viewer/sayer 设计、tmux 形态、测试策略、决策记录）
+  配额语义、viewer/sayer 设计、测试策略、决策记录）
 
 ## 入口用法（两 prompt + 一 extension）
 
@@ -169,15 +154,12 @@ npm 包 `pi-agents-helper` 提供两个 prompt template 与一个扩展命令（
 | 入口 | 形态 | 用途 | 观看方式 |
 |---|---|---|---|
 | `/agents-helper "<问题>" [agents 数量]` | prompt | **默认模式**（pi-web/无终端可用）；`agents 数量` 可选（默认 3，数字或名称列表） | 本地 viewer（见下），观看不进 LLM（零 token） |
-| `/agents-helper-tmux "<问题>" [agents 数量]` | prompt | **tmux 双屏模式**（用户明确指定）；`agents 数量` 可选 | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
 | `/agents-helper-human "<文本>"` | extension | **插话**（讨论进行中） | —（一条消息，立即发送） |
 
 讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
 `/agents-helper-human`（扩展命令，零 LLM 直接执行）。
 
-### 观看方式（viewer 全文不进 LLM）
-
-```bash
+### 观看方式（viewer 全文不进 LLM）```bash
 # 有终端：任何终端实时滚动
 python3 human_viewer.py <目录> --follow
 
@@ -214,7 +196,6 @@ wrapper 命令一览：
 | Python | ≥3.9 | 脚本运行时（标准库，无第三方包） |
 | pi | 已安装的 pi CLI | 讨论 agent 运行时 |
 | git | 任意 | bare 仓库 + 每 commit 一条消息 |
-| tmux | 任意 | 可选：双屏观看/插话形态 |
 | Linux | — | `pgrep`、`setsid`、`fcntl.flock` |
 
 ## 环境要求：aft 的 bash 配置（重要）

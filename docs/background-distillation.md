@@ -2,7 +2,7 @@
 
 > 来源：2026-09-01 讨论「agents-helper 注入 background 应该怎样最有效」
 > （4 agents 共识；完整论证见设计文档决策记录）。适用：`/agents-helper`
-> 与 `/agents-helper-tmux` 第 1 步背景提炼 + 讨论期间增量插话。
+> 与 `/agents-helper` 第 1 步背景提炼 + 讨论期间增量插话。
 
 ## 一、提炼时对照（写入 --background 前过五问）
 

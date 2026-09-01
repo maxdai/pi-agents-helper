@@ -76,7 +76,7 @@ def say(workdir, body):
 def interactive(workdir):
     """交互模式：逐行累积，空行提交（粘贴多行/打字统一语义）。
 
-    tmux 下屏用法（实测 2026-08-30 用户反馈：shell 敲命令不直观）：
+    终端交互插话用法（实测 2026-08-30 用户反馈：shell 敲命令不直观）：
       python3 human_sayer.py <base> -i
     然后直接输入插话内容：
       > 第一行
@@ -109,7 +109,7 @@ def main():
     parser.add_argument("text", nargs="?", default=None,
                         help="插话文本（可多行；不传则读 stdin）")
     parser.add_argument("-i", "--interactive", action="store_true",
-                        help="交互模式：逐行输入，空行提交（tmux 下屏用法）")
+                        help="交互模式：逐行输入，空行提交（终端手动插话）")
     args = parser.parse_args()
 
     base = os.path.abspath(os.path.expanduser(args.base))
