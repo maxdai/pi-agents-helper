@@ -7,7 +7,7 @@
   "license": "MIT",
   "pi": {
     "extensions": [
-      "./extensions/*"
+      "./extensions"
     ],
     "prompts": [
       "./prompts"
