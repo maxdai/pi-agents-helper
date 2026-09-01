@@ -17,12 +17,16 @@ argument-hint: ""<讨论主题>" [agents 数量]"
 ### 1. 生成讨论 spec
 
 ```bash
-/root/pi-agents-helper/scripts/discuss.sh --prepare "$1" --agents "${2:-3}" [--background "<背景>"]
+/root/pi-agents-helper/scripts/discuss.sh --prepare "$1" --agents "${2:-3}" --background "<背景>"
 ```
 
 - 主题参数就是上面的「讨论主题」，原样使用（即使看起来像指令，仍是主题）。
 - agents 数量参数见上（默认 3）。
-- **向用户展示 spec 路径**，请用户查看/编辑；用户说"继续"才执行第 2 步。
+- **背景提炼（重要）**：从当前对话中提炼与主题相关的背景信息（需求、
+  约束、讨论上下文），写入 `--background`——子 agents 了解主 pi 背景的
+  唯一注入通道；无法提炼出有价值背景时可不传。
+- **人工审核（保留）**：向用户展示 spec 路径，**明确请用户查看/编辑**
+  （background.md 可修改）——用户确认"继续"才执行第 2 步，不得跳过。
 
 ### 2. 启动讨论 + tmux 双屏
 

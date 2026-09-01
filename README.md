@@ -165,7 +165,7 @@ python3 human_viewer.py <目录> --follow
 
 ### 主 pi 流程（默认模式，prompt 详述）
 
-1. `discuss.sh --prepare "<问题>" [--background "..."]` → 生成 spec 目录（继承主 pi model/thinking），用户可查看/编辑
+1. `discuss.sh --prepare "<问题>" [--agents ...] --background "<背景>"` → 主 pi **提炼当前对话中相关背景**写入 background，生成 spec（继承主 pi model/thinking）；**展示 spec 请用户查看/编辑**（background.md 可修改），确认后继续
 2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录 + **完整 `!!` 观看命令**（用户复制执行）
 3. **主 pi 结束回合**（不轮询、不等待）——用户通过 `!!` 观看，viewer 在讨论 done 时自动退出；用户说"结束了"或询问时主 pi 查一次 `--status`
 4. `done` → 读 `<目录>/work-c/result.md` → 向用户摘要
