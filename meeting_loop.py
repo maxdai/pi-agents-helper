@@ -166,8 +166,7 @@ def build_wake_prompt(agent, meta, is_first, state, retry,
     if meta:
         lines.append("需要读取的新消息：")
         for m in meta:
-            stale = " [陈旧——该消息之后有更新]" if m["stale"] else ""
-            lines.append(f"- {m['path']}{stale}")
+            lines.append(f"- {m['path']}")
     return "\n".join(lines)
 
 

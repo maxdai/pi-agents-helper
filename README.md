@@ -47,6 +47,14 @@ pi install npm:pi-agents-helper
 - 开发仓库场景：建 symlink 使固定路径指向仓库
   （`ln -sfn /root/pi-agents-helper ~/.pi/agent/npm/node_modules/pi-agents-helper`）
 
+**固定路径生效的标准核验法**（2026-09-01 讨论定，不要用命令行长度判断——
+跨讨论比较长度会被 session-id 目录名干扰）：
+
+```bash
+readlink -f ~/.pi/agent/npm/node_modules/pi-agents-helper   # 应指向实际安装位置
+ls ~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh  # 文件存在
+```
+
 ### 用 skill（推荐，主 pi 会话内）
 
 ```

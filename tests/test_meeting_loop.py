@@ -222,5 +222,24 @@ class TestKillProc(unittest.TestCase):
         self.assertTrue(proc.killed)
 
 
+class TestBuildWakePrompt(unittest.TestCase):
+    """build_wake_prompt：未读消息清单格式（打磨项 2026-09-01 去陈旧标注）。"""
+
+    def test_meta_lists_paths_no_stale_marker(self):
+        meta = [
+            {"path": "a/0001.md", "stale": False},
+            {"path": "b/0002.md", "stale": True},
+        ]
+        p = meeting_loop.build_wake_prompt("a", meta, False, "meeting", False, msg_path="a/0003.md")
+        self.assertIn("- a/0001.md", p)
+        self.assertIn("- b/0002.md", p)
+        self.assertNotIn("陈旧", p)  # 打磨项：标注已去掉
+
+    def test_msg_path_and_state(self):
+        p = meeting_loop.build_wake_prompt("a", None, True, "meeting", False, msg_path="a/0001.md")
+        self.assertIn("a/0001.md", p)
+        self.assertIn("第一位发言者", p)
+
+
 if __name__ == "__main__":
     unittest.main()

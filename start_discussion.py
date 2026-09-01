@@ -112,6 +112,42 @@ def _spec_models(spec_dir, participants):
     return out
 
 
+def _strip_empty_sections(question):
+    """去掉 question.md 中未填的可选节（打磨项 2026-09-01 讨论结论）。
+
+    模板生成的可选节（## 初始立场 / ## 待回答的问题）如果用户没编辑，
+    节内只有占位符行（"- X: 立场" / "- 问题"）——注入前整节去掉，
+    避免占位符混入讨论环境。判据精确：占位符是确定字符串，用户真实
+    内容不会写成 "- X: 立场"（立场值就是"立场"二字）。
+    """
+    placeholder = re.compile(r"^-\s+(\w+:)?\s*立场$|^-\s+问题$")
+    out = []
+    pending_title = None  # 当前节的标题（占位符节连标题一起删）
+    cur = []  # 当前节内容行
+    cur_is_placeholder = True
+
+    def flush():
+        if not cur_is_placeholder:
+            if pending_title is not None:
+                out.append(pending_title)
+            out.extend(cur)
+
+    for line in question.splitlines():
+        if line.startswith("## "):
+            flush()
+            pending_title = line
+            cur = []
+            cur_is_placeholder = True
+        elif line.strip() == "":
+            cur.append(line)
+        else:
+            cur.append(line)
+            if not placeholder.match(line):
+                cur_is_placeholder = False
+    flush()
+    return "\n".join(out)
+
+
 def gen_spec_skeleton(spec_dir, participants):
     """生成 spec 骨架（--spec-gen）：question.md + background.md + models.md + agents/X.md。
 
@@ -342,6 +378,9 @@ def setup_environment(args, participants, base, spec_dir=None):
     """
     # spec 内容预读（跳过首行说明）
     spec_question = _spec_read(spec_dir, "question.md") if spec_dir else None
+    if spec_question is not None:
+        # 未填的可选节（占位符）去掉，避免注入混入模板内容（打磨项 2026-09-01）
+        spec_question = _strip_empty_sections(spec_question)
     spec_background = _spec_read(spec_dir, "background.md") if spec_dir else None
     spec_agents = {}
     if spec_dir:

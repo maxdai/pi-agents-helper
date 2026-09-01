@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from start_discussion import (
     _spec_read, _spec_models, _resolve_spec, gen_spec_skeleton,
     gen_agens_md, gen_agent_def, setup_environment,
-    _default_model,
+    _default_model, _strip_empty_sections,
 )
 
 
@@ -72,6 +72,32 @@ class TestSpecRead(unittest.TestCase):
     def test_missing_returns_none(self):
         with tempfile.TemporaryDirectory() as d:
             self.assertIsNone(_spec_read(d, "nope.md"))
+
+
+class TestStripEmptySections(unittest.TestCase):
+    """_strip_empty_sections：未填可选节（占位符）注入前去掉（打磨项 2026-09-01）。"""
+
+    def test_placeholder_sections_removed(self):
+        q = "# 讨论主题：T\n\n## 初始立场（可选）\n- a: 立场\n- b: 立场\n\n## 待回答的问题（可选）\n- 问题\n"
+        out = _strip_empty_sections(q)
+        self.assertNotIn("初始立场", out)
+        self.assertNotIn("待回答的问题", out)
+        self.assertIn("# 讨论主题：T", out)
+
+    def test_filled_section_kept(self):
+        q = "# 讨论主题：T\n\n## 初始立场（可选）\n- a: 我选 Python\n\n## 待回答的问题（可选）\n- 并发场景下各自优劣势？\n"
+        out = _strip_empty_sections(q)
+        self.assertIn("## 初始立场（可选）", out)
+        self.assertIn("我选 Python", out)
+        self.assertIn("并发场景", out)
+
+    def test_mixed_sections(self):
+        """已填的保留、未填的去掉（同文件混合）。"""
+        q = "# 讨论主题：T\n\n## 初始立场（可选）\n- a: 立场\n\n## 待回答的问题（可选）\n- 两种语言并发优劣？\n"
+        out = _strip_empty_sections(q)
+        self.assertNotIn("初始立场", out)
+        self.assertIn("## 待回答的问题（可选）", out)
+        self.assertIn("两种语言并发优劣", out)
 
 
 class TestSpecSkeleton(unittest.TestCase):
