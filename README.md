@@ -36,8 +36,8 @@ pi-agents-helper/
 ### 用 skill（推荐，主 pi 会话内）
 
 ```
-/skill:agents-helper "<问题>"                        # 默认模式启动讨论（pi-web 也可用）
-/skill:agents-helper-tmux "<问题>"                   # tmux 双屏模式（用户明确指定）
+/agents-helper "<问题>"                        # 默认模式启动讨论（pi-web 也可用）
+/agents-helper-tmux "<问题>"                   # tmux 双屏模式（用户明确指定）
 /agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
 ```
 
@@ -88,7 +88,7 @@ python3 human_sayer.py <base> -i                      # 交互模式（tmux 下�
 插话效果：agents 下次轮询即看到（触发响应）；已冻结 agent 不响应（发言锁）；
 human 每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加快配额耗尽）。
 
-### tmux 双屏形态（实测验证；由 agents-helper-tmux skill 启动）
+### tmux 双屏形态（实测验证；由 agents-helper-tmux prompt 启动）
 
 ```
 ┌────────────────────────────────┐
@@ -98,7 +98,7 @@ human 每插话一次，所有 agent 的 meeting 配额上限 +1（响应不加�
 └────────────────────────────────┘
 ```
 
-**用户明确指定才用**（`/skill:agents-helper-tmux`）：tmux 需要终端访问，
+**用户明确指定才用**（`/agents-helper-tmux`）：tmux 需要终端访问，
 pi-web 等无终端场景不可用。主 pi 一键启动 tmux session（`discuss-<时间戳>`）
 并提示 attach 命令；用户 attach 后观看/插话全在 tmux 内进行，随时 detach
 （讨论继续），主 pi 只轻量轮询等在 done 收尾。
@@ -140,15 +140,15 @@ meeting（自由发言）→ all-freezing（冻结级联）→ round-robin（RR 
 - `docs/pi-helper-design.md`：完整设计（信息层/流程层分离、各阶段行为推演、
   配额语义、viewer/sayer 设计、tmux 形态、测试策略、决策记录）
 
-## skill 用法（三入口）
+## 入口用法（两 prompt + 一 extension）
 
-npm 包 `pi-agents-helper` 提供三个 skill（**用户手动触发**）：
+npm 包 `pi-agents-helper` 提供两个 prompt template 与一个扩展命令（**用户手动触发**）：
 
-| 入口 | 用途 | 观看方式 |
-|---|---|---|
-| `/skill:agents-helper "<问题>"` | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），观看不进 LLM（零 token） |
-| `/skill:agents-helper-tmux "<问题>"` | **tmux 双屏模式**（用户明确指定） | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
-| `/agents-helper-human "<文本>"` | **插话**（讨论进行中） | —（一条消息，立即发送） |
+| 入口 | 形态 | 用途 | 观看方式 |
+|---|---|---|---|
+| `/agents-helper "<问题>"` | prompt | **默认模式**（pi-web/无终端可用） | 本地 viewer（见下），观看不进 LLM（零 token） |
+| `/agents-helper-tmux "<问题>"` | prompt | **tmux 双屏模式**（用户明确指定） | tmux 上屏实时全文 + 下屏插话，观看/插话全在 tmux 内 |
+| `/agents-helper-human "<文本>"` | extension | **插话**（讨论进行中） | —（一条消息，立即发送） |
 
 讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
 `/agents-helper-human`（扩展命令，零 LLM 直接执行）。
@@ -163,11 +163,11 @@ python3 human_viewer.py <目录> --follow
 !!python3 /root/pi-agents-helper/human_viewer.py <目录> --follow
 ```
 
-### 主 pi 流程（默认模式，SKILL.md 详述）
+### 主 pi 流程（默认模式，prompt 详述）
 
 1. `discuss.sh --prepare "<问题>" [--background "..."]` → 生成 spec 目录（继承主 pi model/thinking），用户可查看/编辑
-2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录；主 pi 告知观看方式
-3. **轮询**（主 pi 不结束回合）：`discuss.sh --status <目录>` 轻量轮询 → running 继续 / done 停止（**不转述全文**，观看零 token）
+2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录 + **完整 `!!` 观看命令**（用户复制执行）
+3. **主 pi 结束回合**（不轮询、不等待）——用户通过 `!!` 观看，viewer 在讨论 done 时自动退出；用户说"结束了"或询问时主 pi 查一次 `--status`
 4. `done` → 读 `<目录>/work-c/result.md` → 向用户摘要
 5. `discuss.sh --cleanup <目录>`（必须，避免残留 session）
 

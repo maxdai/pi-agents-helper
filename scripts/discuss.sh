@@ -343,6 +343,10 @@ SETTINGS_EOF
     cat <<OUTPUT_EOF
 讨论已启动
 目录: $dir_path
+
+观看讨论（pi-web 复制执行，不进 LLM；Esc 中断后可插话再续看）:
+!!python3 "$ROOT_DIR/human_viewer.py" $dir_path --follow
+
 查看进展: $0 --view $dir_path
 插话: $0 --say $dir_path "<文本>"
 查看状态: $0 --status $dir_path

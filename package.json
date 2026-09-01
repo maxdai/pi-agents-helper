@@ -6,18 +6,18 @@
   "private": false,
   "license": "MIT",
   "pi": {
-    "skills": [
-      "./skills"
+    "prompts": [
+      "./prompts"
     ]
   },
   "files": [
     "scripts",
-    "skills",
     "*.py",
     "templates",
     "README.md",
     "AGENTS.md",
-    "docs/pi-helper-design.md"
+    "docs/pi-helper-design.md",
+    "prompts"
   ],
   "keywords": [
     "pi",

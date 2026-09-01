@@ -300,7 +300,7 @@ human 通道 = **两个独立进程 + 壳**（用户 2026-08-30 定）：
 展示），下屏 `human_sayer -i`（交互插话，4 行）。实测通过：插话实时上屏、
 agents 响应、状态变化显示、done 自动退出。
 
-**skill 入口：`/skill:agents-helper-tmux`——用户明确指定才用**（用户
+**skill 入口：`/agents-helper-tmux`——用户明确指定才用**（用户
 2026-08-31 定）：tmux 需要用户能访问终端（pi-web 无终端时不可用），
 因此默认模式（`agents-helper`）不碰 tmux；用户主动要求 tmux 双屏时
 用本 skill。主 pi 启动 tmux + 提示 attach 命令后，**之后的操作都在
@@ -476,6 +476,9 @@ Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste �
 | AGENTS.md.tpl | 已加「来自 human 的插话」节（权威输入语义） | 2026-08-30 定稿 |
 | 插话入口 | 独立命令 `agents-helper-human`（扩展命令，零 LLM：handler spawn human_sayer + notify）；普通 user message = 与主 pi 对话 | 用户 2026-08-31 |
 | 插话迁移 | agents-helper-human 演化：skill（args 追加歧义）→ prompt template（$1 替换无歧义，实测）→ extension 命令（零 LLM，2026-08-31 定） | 用户 2026-08-31 |
+| 主 skill 形态 | 两 prompt + 一 extension（用户 2026-08-31 定）：agents-helper / agents-helper-tmux 迁到 prompt template（$1 = 主题机制性消除参数歧义——skill 的 args 追加靠措辞修补过两轮，实测仍脆弱）；agents-helper-human 已是 extension（零 LLM） | 用户 2026-08-31 |
+| 等待机制化 | 主 pi 回合结束、零轮询（用户 2026-08-31 定）：用户用 !!viewer 观看（done 自动退出 = 完成信号）；主 pi 只在用户驱动时查一次 --status。废弃"提示词要求持续轮询"（实测 LLM 违反两次：提示词控制不可靠） | 用户 2026-08-31 |
+| 观看命令输出 | wrapper --start 输出完整 `!!python3 ... --follow` 命令（含路径），主 pi 原样展示供复制 | 用户 2026-08-31 |
 | 讨论目录发现 | 方案 3（用户 2026-08-31 定）：零状态文件——wrapper 目录名 = discuss-<PI_SESSION_ID>-<时间戳>（aft 不再替换 bash 后 PI_SESSION_ID 注入可用）；扩展用 ctx.sessionManager.getSessionId() + glob cwd/discuss-<sid>-* 取最新；session 隔离彻底（同目录多 session 也互不干扰）。历程：全局文件 → 项目下文件（aft 替换 bash 时代，sid 拿不到）→ cwd+sid 推导 | 用户 2026-08-31 |
 | models.md 读取 | 环境变量优先（PI_PROVIDER/PI_MODEL/PI_REASONING_LEVEL，aft 改动后可用的当前生效值），session 文件解析降为兜底 | 用户 2026-08-31 |
 | tmux 入口 | 独立 skill `agents-helper-tmux`：用户明确指定才用，之后操作全在 tmux 内 | 用户 2026-08-31 |
