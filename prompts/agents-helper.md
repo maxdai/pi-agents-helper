@@ -29,6 +29,8 @@ argument-hint: '"<讨论主题>" [agents 数量]'
   已做的相关决策、相关上下文）；② 与主题无关的对话内容一律不提炼；
   ③ 无法提炼出有价值背景时可不传。展示 spec 时**简要说明提炼了什么**
   （便于用户审核准确性）。
+- **背景提炼遵循规范**：/root/pi-agents-helper/docs/background-distillation.md
+  （提炼时先读对照；已熟悉可跳过）
 - wrapper 自动把当前 model/thinking 写入 models.md。
 - **人工审核（保留）**：向用户展示 spec 路径，**明确请用户查看/编辑**
   （background.md 可增删修改提炼内容、question.md 可补充视角/问题）——

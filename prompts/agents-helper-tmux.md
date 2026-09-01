@@ -27,6 +27,8 @@ argument-hint: '"<讨论主题>" [agents 数量]'
   `--background`——子 agents 了解主 pi 背景的唯一注入通道；与主题无关
   的对话内容不提炼；提炼不出有价值背景时不传。展示 spec 时简要说明
   提炼了什么。
+- **背景提炼遵循规范**：/root/pi-agents-helper/docs/background-distillation.md
+  （提炼时先读对照；已熟悉可跳过）
 - **人工审核（保留）**：向用户展示 spec 路径，**明确请用户查看/编辑**
   （background.md 可修改）——用户确认"继续"才执行第 2 步，不得跳过。
 
