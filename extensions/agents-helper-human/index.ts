@@ -25,20 +25,34 @@ import * as path from "node:path";
 const HELPER_DIR = "/root/pi-agents-helper";
 const SAYER = path.join(HELPER_DIR, "human_sayer.py");
 
-/** 按 (cwd, sessionId) 推导当前讨论目录：discuss-<sid>-<stamp> 中字典序最大者。 */
-function findCurrentDir(cwd: string, sid: string): string | null {
+/** 按 (cwd, sessionId) 推导当前讨论目录：优先 discuss-<sid>-<stamp>（session
+ *  隔离），找不到回退 discuss-<stamp>（无 sid 目录——bash:false 缺失时
+ *  wrapper 拿不到 PI_SESSION_ID，降级为项目下最新讨论，警告提示）。 */
+function findCurrentDir(cwd: string, sid: string): {
+  dir: string | null;
+  degraded: boolean;
+} {
   try {
-    const prefix = `discuss-${sid}-`;
-    const names = fs
-      .readdirSync(cwd, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && e.name.startsWith(prefix))
+    const names = fs.readdirSync(cwd, { withFileTypes: true });
+    const bySid = names
+      .filter((e) => e.isDirectory() && e.name.startsWith(`discuss-${sid}-`))
       .map((e) => e.name)
       .sort();
-    if (names.length === 0) return null;
-    const dir = path.join(cwd, names[names.length - 1]);
-    return fs.existsSync(dir) ? dir : null;
+    if (bySid.length > 0) {
+      const dir = path.join(cwd, bySid[bySid.length - 1]);
+      return { dir: fs.existsSync(dir) ? dir : null, degraded: false };
+    }
+    const any = names
+      .filter((e) => e.isDirectory() && e.name.startsWith("discuss-"))
+      .map((e) => e.name)
+      .sort();
+    if (any.length > 0) {
+      const dir = path.join(cwd, any[any.length - 1]);
+      return { dir: fs.existsSync(dir) ? dir : null, degraded: true };
+    }
+    return { dir: null, degraded: false };
   } catch {
-    return null;
+    return { dir: null, degraded: false };
   }
 }
 
@@ -68,14 +82,21 @@ export default function register(pi: any) {
         return;
       }
       const sid = ctx.sessionManager.getSessionId();
-      const dir = findCurrentDir(ctx.cwd, sid);
+      const found = findCurrentDir(ctx.cwd, sid);
+      const dir = found.dir;
       if (!dir) {
         ctx.ui.notify(
-          "没有正在进行的讨论（cwd 下无 discuss-<sessionId>-* 目录）。" +
+          "没有正在进行的讨论（cwd 下无 discuss-* 目录）。" +
             "先用 /agents-helper 启动讨论。",
           "error"
         );
         return;
+      }
+      if (found.degraded) {
+        ctx.ui.notify(
+          `未找到本 session 的讨论（讨论目录不含 session id，可能是 aft 未设置 "bash": false）——插话指向项目下最新讨论: ${dir}`,
+          "warning"
+        );
       }
       const { ok, output } = await runSayer(dir, text);
       if (ok && output) {
