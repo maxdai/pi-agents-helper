@@ -51,6 +51,35 @@ fail() {
     exit 1
 }
 
+# 检查 aft 是否关闭 bash 接管（用户 2026-08-31：0.2.0 依赖 PI_SESSION_ID 等
+# 注入——aft 接管 bash 后这些变量不再注入，插话扩展找不到讨论目录）
+# 仅 --prepare/--start 需要（模型继承 + 目录含 sid）；不阻断（手动跑讨论
+# 仍可用），只给醒目警告。
+check_aft_bash() {
+    local cfg="$HOME/.config/cortexkit/aft.jsonc"
+    local json=""
+    if [ -f "$cfg" ]; then
+        json="$(cat "$cfg")"
+    else
+        # 兼容旧路径 aft.json
+        [ -f "$HOME/.config/cortexkit/aft.json" ] && json="$(cat "$HOME/.config/cortexkit/aft.json")"
+    fi
+    if [ -z "$json" ]; then
+        echo "[aft] 警告: 未找到 $HOME/.config/cortexkit/aft.jsonc" >&2
+        echo "[aft]   本工具需要 \"bash\": false（关闭 aft 对 bash 的接管），否则" >&2
+        echo "[aft]   插话扩展找不到讨论目录、models.md 退化为兜底值。" >&2
+        echo "[aft]   修复: 在 $HOME/.config/cortexkit/aft.jsonc 中添加 \"bash\": false 并重启 pi。" >&2
+        return
+    fi
+    # 粗解析：bash 顶层字段（jsonc 允许注释，逐行剔除）
+    if ! echo "$json" | sed 's|//.*||' | grep -q '"bash"[[:space:]]*:[[:space:]]*false'; then
+        echo "[aft] 警告: $HOME/.config/cortexkit/aft.jsonc 中未设置 \"bash\": false" >&2
+        echo "[aft]   当前 aft 会接管 bash 工具，PI_SESSION_ID 等环境变量不注入——" >&2
+        echo "[aft]   插话扩展找不到讨论目录、models.md 退化为兜底值。" >&2
+        echo "[aft]   修复: 添加 \"bash\": false 并重启 pi。" >&2
+    fi
+}
+
 require_dir() {
     local dir="$1"
     [ -n "$dir" ] || fail "缺少目录参数"
@@ -193,6 +222,7 @@ read_pi_model_thinking() {
 
 # agents 列表（DEFAULT_AGENTS 逗号分隔 → 行分隔写入 .order）
 cmd_prepare() {
+    check_aft_bash
     local topic="" background=""
     if [ "$#" -lt 1 ]; then
         usage >&2
@@ -296,6 +326,7 @@ OUTPUT_EOF
 }
 
 cmd_start() {
+    check_aft_bash
     local spec_dir="$1"
     require_dir "$spec_dir"
     [ -f "$spec_dir/question.md" ] || fail "spec 缺少 question.md: $spec_dir"

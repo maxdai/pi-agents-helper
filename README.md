@@ -193,3 +193,30 @@ wrapper 命令一览：
 | git | 任意 | bare 仓库 + 每 commit 一条消息 |
 | tmux | 任意 | 可选：双屏观看/插话形态 |
 | Linux | — | `pgrep`、`setsid`、`fcntl.flock` |
+
+## 环境要求：aft 的 bash 配置（重要）
+
+**必须配置**：`~/.config/cortexkit/aft.jsonc` 中设置 `"bash": false`
+
+```jsonc
+{
+  "semantic_search": true,
+  "search_index": true,
+  "bash": false
+}
+```
+
+**原因**：本工具依赖 pi 向 bash 工具注入的会话环境变量
+（`PI_SESSION_ID` / `PI_PROVIDER` / `PI_MODEL` / `PI_REASONING_LEVEL`）：
+
+- `PI_SESSION_ID` → 讨论目录命名含 session id，`/agents-helper-human`
+  扩展按 sid 自动发现当前讨论目录（零状态文件、session 隔离）
+- `PI_PROVIDER` / `PI_MODEL` / `PI_REASONING_LEVEL` → spec 的 `models.md`
+  继承主 pi 当前模型与思考强度
+
+aft 默认会接管（重写）bash 工具，接管后这些变量**不再注入**（环境变量
+只注入原生 bash，不注入 aft 重写后的调用）——插话扩展将找不到讨论目录，
+models.md 退化为兜底值。
+
+**检查**：`discuss.sh` 在 `--prepare`/`--start` 时自动检查该配置，未设置
+会给出醒目警告（含修复方法）。配置后重启 pi 会话生效。
