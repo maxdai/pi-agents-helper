@@ -18,15 +18,15 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| C1 | `last_message_type(messages)` | 按序号升序的消息列表 → 最后一条的 type；空列表 → None | 待测 |
-| C2 | `is_all_last(by_agent, predicate)` | 所有参与者最后一条消息满足 predicate；有人从未发言（None）→ False | 待测 |
-| C3 | `is_all_last_in(by_agent, types)` | 所有参与者最后一条 ∈ types（宽松确认，freezing 或 af 均可） | 待测 |
-| C4 | `read_point_seen_at(messages)` | 读取点 = 最后一条消息的 seen_at；无消息 → ""（从根读起） | 待测 |
-| C5 | `validate_and_fix(fm, agent, mode, head, allow_protocol_types=False, loop_message=False)` | 校验并确定性修复 frontmatter：from 缺失/错误→agent；seen_at：LLM 消息缺失/≠head→head，loop 消息仅缺省兜底；mode 无条件覆盖；type 白名单（默认 {message,freezing,pass}，协议路径全量）非法→errors；to 无条件强制 all。返回 (fixed, errors) | 待测 |
-| C6 | `has_new_messages_for_me(new_messages, me)` | 有别人消息且 to∈{me,all,缺省} → True；自己的消息不触发 | 待测 |
-| C7 | `should_write_af(all_last_types)` | 全员冻结（freezing/af，宽松版）→ True；有人 None → False；空 → False | 待测 |
-| C8 | `can_start_rr(all_last_types)` | 全员最后一条都是 all-freezing → True（单条件严格版） | 待测 |
-| C9 | `aggregate_mode(all_last)` | 全局模式聚合：任一 concluded→concluded；任一 mode==round-robin→round-robin；全员 freezing/af→all-freezing；否则 meeting；空→meeting | 待测 |
+| C1 | `last_message_type(messages)` | 按序号升序的消息列表 → 最后一条的 type；空列表 → None | 已测(通过) |
+| C2 | `is_all_last(by_agent, predicate)` | 所有参与者最后一条消息满足 predicate；有人从未发言（None）→ False | 已测(通过) |
+| C3 | `is_all_last_in(by_agent, types)` | 所有参与者最后一条 ∈ types（宽松确认，freezing 或 af 均可） | 已测(通过) |
+| C4 | `read_point_seen_at(messages)` | 读取点 = 最后一条消息的 seen_at；无消息 → ""（从根读起） | 已测(通过) |
+| C5 | `validate_and_fix(fm, agent, mode, head, allow_protocol_types=False, loop_message=False)` | 校验并确定性修复 frontmatter：from 缺失/错误→agent；seen_at：LLM 消息缺失/≠head→head，loop 消息仅缺省兜底；mode 无条件覆盖；type 白名单（默认 {message,freezing,pass}，协议路径全量）非法→errors；to 无条件强制 all。返回 (fixed, errors) | 已测(通过) |
+| C6 | `has_new_messages_for_me(new_messages, me)` | 有别人消息且 to∈{me,all,缺省} → True；自己的消息不触发 | 已测(通过) |
+| C7 | `should_write_af(all_last_types)` | 全员冻结（freezing/af，宽松版）→ True；有人 None → False；空 → False | 已测(通过) |
+| C8 | `can_start_rr(all_last_types)` | 全员最后一条都是 all-freezing → True（单条件严格版） | 已测(通过) |
+| C9 | `aggregate_mode(all_last)` | 全局模式聚合：任一 concluded→concluded；任一 mode==round-robin→round-robin；全员 freezing/af→all-freezing；否则 meeting；空→meeting | 已测(通过) |
 
 **core 关键边界/异常**：
 - C5：type=None / type 非法（如 "concluded" 默认路径）→ errors 且 mode 仍修复；
@@ -41,28 +41,28 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| F1 | `run_git(workdir, *args, check=True, timeout=30)` | 执行 git 命令；check 且非零退出 → RuntimeError（含 out/err 截断）；否则返回 CompletedProcess | 待测 |
-| F2 | `git_head(workdir)` | 当前 HEAD（rev-parse HEAD，strip） | 待测 |
-| F3 | `git_pull(workdir)` | pull --rebase --autostash（check=False） | 待测 |
-| F4 | `git_commit(workdir, files, subject)` | add 指定文件 + commit（每 commit 一条消息约束） | 待测 |
-| F5 | `git_push(workdir)` | push 带并发容错：非快进 → pull --rebase → 重推，5 次耗尽 → RuntimeError（消息不得滞留本地） | 待测 |
-| F6 | `git_ls_files(workdir, agent_dir)` | 列出 agent 目录已提交消息文件（排序）；无 → [] | 待测 |
-| F7 | `git_show(workdir, commit, path)` | 读 commit 中文件；失败 → None | 待测 |
-| F8 | `_frontmatter_end(content)` | 块边界：开 `---`（严格 startswith）+ 闭 `---`（strip 比较）→ 闭合行号；不完整 → None | 待测 |
-| F9 | `parse_frontmatter(content)` | 块完整才解析（先边界后解析）；字段 `key: value` 正则，剥引号；不完整 → None | 待测 |
-| F10 | `extract_body(content)` | frontmatter 块后正文（strip）；块不完整 → None | 待测 |
-| F11 | `read_message(workdir, path)` | 读消息文件 → (fm, content)；文件不存在 → (None, None) | 待测 |
-| F12 | `_fm_to_lines(frontmatter)` | fm dict → 行列表（`---` + 键值行 + `---`）；值单行化 + 剥引号 | 待测 |
-| F13 | `write_message(workdir, path, fm, body)` | 写文件（frontmatter + 空行 + body）；父目录自动建 | 待测 |
-| F14 | `serialize_message(fm, original)` | 替换原文件 frontmatter 保留 body；首行 `---`（**允许前导空格**，与 F8 语义刻意分离）缺失 → None；无闭合 → None | 待测 |
-| F15 | `list_my_messages(workdir, agent_dir)` | agent 全部消息（含 frontmatter）按序号升序；parse 失败的跳过 | 待测 |
-| F16 | `next_msg_id(workdir, agent_dir)` | 下个序号 = max+1（4 位补零，跳号安全）；无消息 → 0001 | 待测 |
-| F17 | `commit_message(agent, msg_id)` | `discuss: agent/msg_id` 格式 | 待测 |
-| F18 | `read_point(workdir, agent_dir)` | 读取点 = 最后一条参与消息的 seen_at（跳 freezing）；"" = 从根 | 待测 |
-| F19 | `list_new_messages(workdir, since_ref)` | since 后新消息文件路径（ls-tree 全量 / diff since..HEAD）；只保留消息文件；空 since → 全部 | 待测 |
-| F20 | `new_messages_with_meta(workdir, since_ref, me=None)` | 新消息带元数据 {path, from, to, seen_at, stale}；stale = seen_at 之后有**其他**消息更新（diff seen_at..HEAD）；me 过滤自己的；parse 失败跳过 | 待测 |
-| F21 | `is_message_file(path)` | `^[a-z]+/\d{4}\.md$` 判定 | 待测 |
-| F22 | `parse_log_nameonly(output)` | `git log --name-only` 输出 → [(commit, [files])]；按拓扑序；空行跳过；非 40 位 hex 行视为文件 | 待测 |
+| F1 | `run_git(workdir, *args, check=True, timeout=30)` | 执行 git 命令；check 且非零退出 → RuntimeError（含 out/err 截断）；否则返回 CompletedProcess | 已测(通过) |
+| F2 | `git_head(workdir)` | 当前 HEAD（rev-parse HEAD，strip） | 已测(通过) |
+| F3 | `git_pull(workdir)` | pull --rebase --autostash（check=False） | 已测(通过) |
+| F4 | `git_commit(workdir, files, subject)` | add 指定文件 + commit（每 commit 一条消息约束） | 已测(通过) |
+| F5 | `git_push(workdir)` | push 带并发容错：非快进 → pull --rebase → 重推，5 次耗尽 → RuntimeError（消息不得滞留本地） | 已测(通过) |
+| F6 | `git_ls_files(workdir, agent_dir)` | 列出 agent 目录已提交消息文件（排序）；无 → [] | 已测(通过) |
+| F7 | `git_show(workdir, commit, path)` | 读 commit 中文件；失败 → None | 已测(通过) |
+| F8 | `_frontmatter_end(content)` | 块边界：开 `---`（严格 startswith）+ 闭 `---`（strip 比较）→ 闭合行号；不完整 → None | 已测(通过) |
+| F9 | `parse_frontmatter(content)` | 块完整才解析（先边界后解析）；字段 `key: value` 正则，剥引号；不完整 → None | 已测(通过) |
+| F10 | `extract_body(content)` | frontmatter 块后正文（strip）；块不完整 → None | 已测(通过) |
+| F11 | `read_message(workdir, path)` | 读消息文件 → (fm, content)；文件不存在 → (None, None) | 已测(通过) |
+| F12 | `_fm_to_lines(frontmatter)` | fm dict → 行列表（`---` + 键值行 + `---`）；值单行化 + 剥引号 | 已测(通过) |
+| F13 | `write_message(workdir, path, fm, body)` | 写文件（frontmatter + 空行 + body）；父目录自动建 | 已测(通过) |
+| F14 | `serialize_message(fm, original)` | 替换原文件 frontmatter 保留 body；首行 `---`（**允许前导空格**，与 F8 语义刻意分离）缺失 → None；无闭合 → None | 已测(通过) |
+| F15 | `list_my_messages(workdir, agent_dir)` | agent 全部消息（含 frontmatter）按序号升序；parse 失败的跳过 | 已测(通过) |
+| F16 | `next_msg_id(workdir, agent_dir)` | 下个序号 = max+1（4 位补零，跳号安全）；无消息 → 0001 | 已测(通过) |
+| F17 | `commit_message(agent, msg_id)` | `discuss: agent/msg_id` 格式 | 已测(通过) |
+| F18 | `read_point(workdir, agent_dir)` | 读取点 = 最后一条参与消息的 seen_at（跳 freezing）；"" = 从根 | 已测(通过) |
+| F19 | `list_new_messages(workdir, since_ref)` | since 后新消息文件路径（ls-tree 全量 / diff since..HEAD）；只保留消息文件；空 since → 全部 | 已测(通过) |
+| F20 | `new_messages_with_meta(workdir, since_ref, me=None)` | 新消息带元数据 {path, from, to, seen_at, stale}；stale = seen_at 之后有**其他**消息更新（diff seen_at..HEAD）；me 过滤自己的；parse 失败跳过 | 已测(通过) |
+| F21 | `is_message_file(path)` | `^[a-z]+/\d{4}\.md$` 判定 | 已测(通过) |
+| F22 | `parse_log_nameonly(output)` | `git log --name-only` 输出 → [(commit, [files])]；按拓扑序；空行跳过；非 40 位 hex 行视为文件 | 已测(通过) |
 
 **fs 关键边界/异常**：
 - F5：push 一直失败 → RuntimeError（5 次后）；失败中途成功 → 返回

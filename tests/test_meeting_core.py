@@ -313,6 +313,39 @@ class TestValidator(unittest.TestCase):
         fixed, _ = validate_and_fix(dict(fm), "a", "meeting", HEAD)
         self.assertEqual(fixed["to"], "all")
 
+    def test_loop_message_keeps_seen_at(self):
+        """loop 消息：seen_at 沿用（不强制为 head）——用户 10030 定案。"""
+        fm = {"type": "freezing", "from": "a", "seen_at": "old-ref",
+              "mode": "meeting"}
+        fixed, errors = validate_and_fix(dict(fm), "a", "meeting", HEAD,
+                                         loop_message=True)
+        self.assertEqual(errors, [])
+        self.assertEqual(fixed["seen_at"], "old-ref", "loop 消息 seen_at 应沿用")
+
+    def test_loop_message_missing_seen_at_fallback_head(self):
+        """loop 消息 seen_at 缺失（首条 loop 消息无读取点）→ head 兜底。"""
+        fm = {"type": "freezing", "from": "a", "mode": "meeting"}
+        fixed, _ = validate_and_fix(dict(fm), "a", "meeting", HEAD,
+                                    loop_message=True)
+        self.assertEqual(fixed["seen_at"], HEAD)
+
+    def test_empty_frontmatter_all_fixed(self):
+        """空 frontmatter：from/seen_at/mode 全补，type 缺失 → errors。"""
+        fixed, errors = validate_and_fix({}, "a", "meeting", HEAD)
+        self.assertEqual(fixed["from"], "a")
+        self.assertEqual(fixed["seen_at"], HEAD)
+        self.assertEqual(fixed["mode"], "meeting")
+        self.assertEqual(fixed["to"], "all")
+        self.assertEqual(len(errors), 1, "type 缺失应报错")
+        self.assertIn("type", errors[0])
+
+    def test_type_missing_reported(self):
+        """type 字段缺失（None）→ 不在白名单 → errors。"""
+        fm = {"from": "a", "seen_at": HEAD, "mode": "meeting"}
+        _, errors = validate_and_fix(dict(fm), "a", "meeting", HEAD)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("type", errors[0])
+
 
 # ---------------------------------------------------------------
 # 1.4 触发条件
@@ -403,6 +436,8 @@ class TestFreezeCascade(unittest.TestCase):
              "b": {"type": "all-freezing", "mode": "all-freezing"}}), "all-freezing")
         # 从未参与（None）→ meeting
         self.assertEqual(aggregate_mode({"a": None, "b": None}), "meeting")
+        # 空 dict → meeting（无任何 agent）
+        self.assertEqual(aggregate_mode({}), "meeting")
         # 任一 mode==round-robin → round-robin（pass 存在）
         self.assertEqual(aggregate_mode(
             {"a": {"type": "pass", "mode": "round-robin"},
