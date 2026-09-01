@@ -230,10 +230,27 @@ def wake_llm(workdir, agent, prompt, pure=False):
                                 stderr=subprocess.PIPE, text=True)
         _current_proc = proc
         try:
-            out, err = proc.communicate(timeout=MAX_WAKE_SEC)
+            # 分片等待：每片检查讨论目录是否被清理（cleanup 删目录）——
+            # 唤醒阻塞不再屏蔽自退出（完善流程：cleanup 是唯一清理操作，
+            # 无需手动 kill；用户 2026-09-01 原则：不固定为错误操作+补丁）。
+            out = err = None
+            deadline = time.time() + MAX_WAKE_SEC
+            while time.time() < deadline:
+                try:
+                    out, err = proc.communicate(timeout=15)
+                    break  # 正常结束
+                except subprocess.TimeoutExpired:
+                    if not os.path.isdir(os.path.join(base, "repo.git")):
+                        proc.terminate()
+                        out, err = proc.communicate()
+                        log(agent, "讨论目录已清理——终止唤醒中的 pi")
+                        break
+            if out is None:  # 总超时（MAX_WAKE_SEC）
+                proc.terminate()
+                out, err = proc.communicate()
         finally:
             _current_proc = None
-        r = subprocess.CompletedProcess(cmd, proc.returncode, out, err)
+        r = subprocess.CompletedProcess(cmd, proc.returncode, out or "", err or "")
     finally:
         _unlock_git(workdir)
 
