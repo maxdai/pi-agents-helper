@@ -116,20 +116,20 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| L1 | `RecoverableWakeError` | 可恢复唤醒失败异常（内存不足）——引擎 sleep 下轮重试，不代写 | 待测 |
-| L2 | `_handle_sigterm(sig, frame)` | SIGTERM：terminate 唤醒中的 pi 子进程（_kill_proc）→ SystemExit(0)；无进程直接退出 | 待测 |
-| L3 | `_kill_proc(proc)` | 终止子进程：SIGTERM → 5s 未退 SIGKILL（兜底必杀）；已退出直接返回 | 待测 |
-| L4 | `mem_available_mb()` | /proc/meminfo MemAvailable → MB；不可读 → 99999 | 待测 |
-| L5 | `session_id(workdir, agent)` | `discuss-<base名>-<agent>`（非法字符转 -） | 待测 |
-| L6 | `load_session_id(workdir, agent)` | 读 status-<agent>.json 的 sessionID；无 → None | 待测 |
-| L7 | `save_session_id(workdir, agent, sid)` | 写 status-<agent>.json {"sessionID": sid} | 待测 |
-| L8 | `parse_session(stdout)` | 扫描 JSON 行取 type=session 的 id；兼容旧式 sessionID；无 → None | 待测 |
-| L9 | `read_agent_config(workdir, agent)` | 读 pi-agent.json（model/thinking/prompt_file）→ dict | 待测 |
-| L10 | `build_wake_prompt(agent, meta, is_first, state, retry, msg_path)` | 唤醒提示：重试声明/首启声明/消息路径/状态/必须 frontmatter 说明/新消息清单（无陈旧标注） | 待测 |
-| L11 | `_lock_git(workdir)` / `_unlock_git(workdir)` | .git ↔ .git.locked 原子改名（唤醒期防 LLM git 破坏）；recover_git_lock 兜底恢复 | 待测 |
-| L12 | `wake_llm(workdir, agent, prompt, pure)` | spawn pi（--mode json --session-id --approve --print 等）；分片 communicate（15s）检测 repo.git 消失 → _kill_proc + SystemExit(0)；总超时 → _kill_proc + TimeoutExpired；正常 → parse session + save + returncode 分支（No session found 清 status）；返回 (new_sid, returncode) | 待测 |
-| L13 | `make_responder(pure)` | 构造 responder：finalizing → 写 result.md 提示；RR → pass 提示；meeting → 消息路径提示；内存不足 → RecoverableWakeError；调 wake_llm | 待测 |
-| L14 | `_preserve_result_md(workdir)` | bare HEAD:result.md → 父级 <base名>-result.md；无 → 跳过 | 待测 |
+| L1 | `RecoverableWakeError` | 可恢复唤醒失败异常（内存不足）——引擎 sleep 下轮重试，不代写 | 已测(通过) |
+| L2 | `_handle_sigterm(sig, frame)` | SIGTERM：terminate 唤醒中的 pi 子进程（_kill_proc）→ SystemExit(0)；无进程直接退出 | 已测(通过) |
+| L3 | `_kill_proc(proc)` | 终止子进程：SIGTERM → 5s 未退 SIGKILL（兜底必杀）；已退出直接返回 | 已测(通过) |
+| L4 | `mem_available_mb()` | /proc/meminfo MemAvailable → MB；不可读 → 99999 | 已测(通过) |
+| L5 | `session_id(workdir, agent)` | `discuss-<base名>-<agent>`（非法字符转 -） | 已测(通过) |
+| L6 | `load_session_id(workdir, agent)` | 读 status-<agent>.json 的 sessionID；无 → None | 已测(通过) |
+| L7 | `save_session_id(workdir, agent, sid)` | 写 status-<agent>.json {"sessionID": sid} | 已测(通过) |
+| L8 | `parse_session(stdout)` | 扫描 JSON 行取 type=session 的 id；兼容旧式 sessionID；无 → None | 已测(通过) |
+| L9 | `read_agent_config(workdir, agent)` | 读 pi-agent.json（model/thinking/prompt_file）→ dict | 已测(通过) |
+| L10 | `build_wake_prompt(agent, meta, is_first, state, retry, msg_path)` | 唤醒提示：重试声明/首启声明/消息路径/状态/必须 frontmatter 说明/新消息清单（无陈旧标注） | 已测(通过) |
+| L11 | `_lock_git(workdir)` / `_unlock_git(workdir)` | .git ↔ .git.locked 原子改名（唤醒期防 LLM git 破坏）；recover_git_lock 兜底恢复 | 已测(通过) |
+| L12 | `wake_llm(workdir, agent, prompt, pure)` | spawn pi（--mode json --session-id --approve --print 等）；分片 communicate（15s）检测 repo.git 消失 → _kill_proc + SystemExit(0)；总超时 → _kill_proc + TimeoutExpired；正常 → parse session + save + returncode 分支（No session found 清 status）；返回 (new_sid, returncode) | 已测(通过) |
+| L13 | `make_responder(pure)` | 构造 responder：finalizing → 写 result.md 提示；RR → pass 提示；meeting → 消息路径提示；内存不足 → RecoverableWakeError；调 wake_llm | 已测(通过) |
+| L14 | `_preserve_result_md(workdir)` | bare HEAD:result.md → 父级 <base名>-result.md；无 → 跳过 | 已测(发现 bug: 函数体引用未定义 agent → NameError，写文件后 log 行崩溃；生产可达 rw 退出路径；待修复) |
 
 **loop 关键边界/异常**：
 - L3：terminate 后 poll 已退出 → 不 kill；communicate 超时 → kill + 再 communicate

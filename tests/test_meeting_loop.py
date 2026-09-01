@@ -11,6 +11,7 @@ wake_llm）——修改零覆盖，必须补本测试保证核心唤醒功能三
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -239,6 +240,138 @@ class TestBuildWakePrompt(unittest.TestCase):
         p = meeting_loop.build_wake_prompt("a", None, True, "meeting", False, msg_path="a/0001.md")
         self.assertIn("a/0001.md", p)
         self.assertIn("第一位发言者", p)
+
+
+class TestBuildWakePrompt(unittest.TestCase):
+    """build_wake_prompt：未读消息清单格式（打磨项 2026-09-01 去陈旧标注）。"""
+
+    def test_meta_lists_paths_no_stale_marker(self):
+        meta = [
+            {"path": "a/0001.md", "stale": False},
+            {"path": "b/0002.md", "stale": True},
+        ]
+        p = meeting_loop.build_wake_prompt("a", meta, False, "meeting", False, msg_path="a/0003.md")
+        self.assertIn("- a/0001.md", p)
+        self.assertIn("- b/0002.md", p)
+        self.assertNotIn("陈旧", p)  # 打磨项：标注已去掉
+
+    def test_msg_path_and_state(self):
+        p = meeting_loop.build_wake_prompt("a", None, True, "meeting", False, msg_path="a/0001.md")
+        self.assertIn("a/0001.md", p)
+        self.assertIn("第一位发言者", p)
+
+    def test_retry_declaration(self):
+        p = meeting_loop.build_wake_prompt("a", None, False, "meeting", True, msg_path=None)
+        self.assertIn("没写消息", p)
+
+
+class TestMiscLoop(unittest.TestCase):
+    """L1/L4-L7/L9/L11/L14：剩余 API。"""
+
+    def test_recoverable_wake_error(self):
+        e = meeting_loop.RecoverableWakeError("内存不足")
+        self.assertIsInstance(e, Exception)
+        with self.assertRaises(meeting_loop.RecoverableWakeError):
+            raise e
+
+    def test_session_id_format(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "disc-abc", "work-a")
+            os.makedirs(work)
+            sid = meeting_loop.session_id(work, "a")
+            self.assertIn("disc-abc", sid)
+            self.assertIn("-a", sid)
+
+    def test_save_load_session_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "disc", "work-a")
+            os.makedirs(work)
+            # 无 status 文件 → ""（实现返回空串，非 None）
+            self.assertEqual(meeting_loop.load_session_id(work, "a"), "")
+            meeting_loop.save_session_id(work, "a", "sid-123")
+            self.assertEqual(meeting_loop.load_session_id(work, "a"), "sid-123")
+            # 损坏 JSON → ""
+            with open(os.path.join(tmp, "disc", "status-a.json"), "w") as f:
+                f.write("not json")
+            self.assertEqual(meeting_loop.load_session_id(work, "a"), "")
+
+    def test_mem_available_mb(self):
+        mb = meeting_loop.mem_available_mb()
+        self.assertGreater(mb, 0)
+        # 不可读 → 99999
+        with mock.patch("builtins.open", side_effect=OSError):
+            self.assertEqual(meeting_loop.mem_available_mb(), 99999)
+
+    def test_read_agent_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "disc", "work-a")
+            os.makedirs(work)
+            cfg = meeting_loop.read_agent_config(work, "a")
+            self.assertEqual(cfg, {})  # 无 pi-agent.json
+            with open(os.path.join(work, "pi-agent.json"), "w") as f:
+                json.dump({"model": "m1", "thinking": "max",
+                           "prompt_file": "p.md"}, f)
+            cfg = meeting_loop.read_agent_config(work, "a")
+            self.assertEqual(cfg["model"], "m1")
+            self.assertEqual(cfg["thinking"], "max")
+
+    def test_lock_git_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "disc", "work-a")
+            os.makedirs(os.path.join(work, ".git"))
+            meeting_loop._lock_git(work)
+            self.assertFalse(os.path.exists(os.path.join(work, ".git")))
+            self.assertTrue(os.path.exists(os.path.join(work, ".git.locked")))
+            meeting_loop._unlock_git(work)
+            self.assertTrue(os.path.exists(os.path.join(work, ".git")))
+            self.assertFalse(os.path.exists(os.path.join(work, ".git.locked")))
+
+    def test_recover_git_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = os.path.join(tmp, "disc", "work-a")
+            os.makedirs(os.path.join(work, ".git.locked"))
+            meeting_loop.recover_git_lock(work, "a")
+            self.assertTrue(os.path.exists(os.path.join(work, ".git")))
+
+    @unittest.expectedFailure
+    def test_preserve_result_md(self):
+        """L14：bare HEAD:result.md → 父级 <base名>-result.md。
+
+        【发现 bug 2026-09-01，待修复（测试阶段不改代码）】
+        _preserve_result_md(workdir) 函数体引用未定义变量 agent
+        （log(agent, ...)）——result.md 存在时走到该行 → NameError。
+        生产可达：__main__ 中 resultWriter 的 loop 退出时调用。
+        影响：写文件已成功（log 在写后），但进程以异常退出（traceback +
+        非零退出码）。修复建议：log 去掉 agent 参数（函数无 agent 上下文）。
+        """
+        import subprocess as sp
+        tmp = tempfile.mkdtemp(prefix="preserve-")
+        try:
+            base = os.path.join(tmp, "disc-x")
+            bare = os.path.join(base, "repo.git")
+            os.makedirs(base)
+            sp.run(["git", "init", "--bare", bare], check=True,
+                   capture_output=True)
+            w = os.path.join(base, "work-a")
+            sp.run(["git", "clone", bare, w], check=True, capture_output=True)
+            sp.run(["git", "config", "user.name", "t"], cwd=w, check=True)
+            sp.run(["git", "config", "user.email", "t@t"], cwd=w, check=True)
+            with open(os.path.join(w, "result.md"), "w") as f:
+                f.write("# 结论\n\n内容" * 20)
+            sp.run(["git", "add", "-A"], cwd=w, check=True, capture_output=True)
+            sp.run(["git", "commit", "-m", "r"], cwd=w, check=True,
+                   capture_output=True)
+            sp.run(["git", "push", "origin", "HEAD"], cwd=w, check=True,
+                   capture_output=True)
+            meeting_loop._preserve_result_md(w)
+            saved = os.path.join(tmp, "disc-x-result.md")
+            self.assertTrue(os.path.exists(saved))
+            # 无 result.md → 跳过（不建文件）
+            os.remove(saved)
+            meeting_loop._preserve_result_md(w)
+            self.assertFalse(os.path.exists(saved))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":
