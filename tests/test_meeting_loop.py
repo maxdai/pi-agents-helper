@@ -24,14 +24,21 @@ import meeting_loop  # noqa: E402
 class FakeProc:
     """模拟 pi 子进程：communicate 行为可配置。"""
 
-    def __init__(self, behavior):
+    def __init__(self, behavior, sticky_terminate=False):
         self.behavior = behavior  # ok | timeout-then-removed | always-timeout
+        self.sticky_terminate = sticky_terminate  # terminate 后仍不退出（测 kill 兜底）
         self.returncode = 0
         self.terminated = False
+        self.killed = False
         self.calls = 0
 
     def communicate(self, timeout=None):
         self.calls += 1
+        if self.killed:
+            return ("", "")  # kill 生效后正常返回（模拟进程已死）
+        if self.sticky_terminate:
+            # 模拟 terminate 无效：communicate 始终超时（触发 kill 兜底）
+            raise subprocess.TimeoutExpired("pi", timeout)
         if self.behavior == "ok":
             return ("OUT", "ERR")
         if self.behavior == "timeout-then-removed":
@@ -42,13 +49,15 @@ class FakeProc:
         raise subprocess.TimeoutExpired("pi", timeout)
 
     def poll(self):
+        if self.terminated or self.killed:
+            return self.returncode
         return None  # 仍在运行
 
     def terminate(self):
         self.terminated = True
 
     def kill(self):
-        self.terminated = True
+        self.killed = True
 
 
 class TestWakeLlm(unittest.TestCase):
@@ -132,6 +141,44 @@ class TestSigtermHandler(unittest.TestCase):
         meeting_loop._current_proc = None
         with self.assertRaises(SystemExit):
             meeting_loop._handle_sigterm(None, None)
+
+
+class TestKillProc(unittest.TestCase):
+    """_kill_proc 两条路径（2026-09-01 新增，e2e 卡死 bug 的修复）。"""
+
+    def test_terminate_suffices(self):
+        """terminate 生效（communicate 返回）：不触发 kill。"""
+        proc = FakeProc("ok")
+        meeting_loop._kill_proc(proc)
+        self.assertTrue(proc.terminated)
+        self.assertFalse(proc.killed)
+
+    def test_kill_fallback(self):
+        """terminate 无效（communicate 持续超时）：5s 后 SIGKILL 兜底。"""
+        proc = FakeProc("ok", sticky_terminate=True)
+        meeting_loop._kill_proc(proc)
+        self.assertTrue(proc.terminated)
+        self.assertTrue(proc.killed)
+
+    def test_already_exited(self):
+        """进程已退出：直接返回，不操作。"""
+        proc = FakeProc("ok")
+        proc.terminate()  # poll 返回非 None
+        meeting_loop._kill_proc(proc)
+        self.assertEqual(proc.calls, 0)  # communicate 未被调用
+
+    def test_wake_llm_removed_dir_uses_kill_proc(self):
+        """目录清理路径最终走 _kill_proc（SystemExit 前必杀 pi）。"""
+        proc = FakeProc("timeout-then-removed", sticky_terminate=True)
+        with self.assertRaises(SystemExit) as cm:
+            t = TestWakeLlm("test_dir_removed_during_wake")
+            t.setUp()
+            try:
+                t._run(proc, repo_git_exists=False)
+            finally:
+                t.tearDown()
+        self.assertEqual(cm.exception.code, 0)
+        self.assertTrue(proc.killed)
 
 
 if __name__ == "__main__":
