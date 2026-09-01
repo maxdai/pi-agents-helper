@@ -9,13 +9,6 @@ argument-hint: '"<讨论主题>" [agents 数量]'
 
 **agents 数量（可选）：${2:-3}**（默认 3；传数字如 4 生成 a..d，或传名称列表如 "x,y"）
 
-## wrapper 位置（先确认再执行）
-
-- 开发仓库：`/root/pi-agents-helper/scripts/discuss.sh`
-- pi install 安装（npm registry）：`~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh`
-
-执行第一步前先用 `ls` 确认实际存在的路径，后续命令统一使用该路径。
-
 这是用户手动触发的流程命令，不是讨论内容。**严格按以下步骤执行**，
 完成第 3 步后**结束当前回合**（不再等待、不轮询）。
 
