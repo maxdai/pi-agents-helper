@@ -241,13 +241,14 @@ def wake_llm(workdir, agent, prompt, pure=False):
                     break  # 正常结束
                 except subprocess.TimeoutExpired:
                     if not os.path.isdir(os.path.join(base, "repo.git")):
-                        proc.terminate()
-                        out, err = proc.communicate()
                         log(agent, "讨论目录已清理——终止唤醒中的 pi")
-                        break
-            if out is None:  # 总超时（MAX_WAKE_SEC）
-                proc.terminate()
-                out, err = proc.communicate()
+                        proc.terminate()
+                        proc.communicate()
+                        raise SystemExit(0)  # 干净退出（SystemExit 不被 except 捕获）
+            # 总超时：保持原语义（run(timeout) 抛 TimeoutExpired → 上层可恢复重试）
+            proc.terminate()
+            proc.communicate()
+            raise subprocess.TimeoutExpired(cmd, MAX_WAKE_SEC)
         finally:
             _current_proc = None
         r = subprocess.CompletedProcess(cmd, proc.returncode, out or "", err or "")
