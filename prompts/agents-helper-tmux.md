@@ -1,11 +1,11 @@
 ---
 description: 以 tmux 双屏模式启动多 agent 讨论（用户明确指定 tmux 时用）
-argument-hint: "<讨论主题> [agents 数量]"
+argument-hint: ""<讨论主题>" [agents 数量]"
 ---
 
 # Agents Helper Tmux（tmux 双屏模式）
 
-**讨论主题：$1**
+**讨论主题：$1**（主题含空格时必须用引号包裹，否则被空格拆成多个参数）
 
 **agents 数量（可选）：${2:-3}**（默认 3；传数字如 4 生成 a..d，或传名称列表如 "x,y"）
 
