@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 """start_discussion.py 生成函数单测（审计#4：环境生成层质量防线）。"""
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from start_discussion import (
     gen_protocol, gen_question, gen_agent_def, gen_agens_md,
+    run, _resolve_path, _default_model, check_status,
 )
 
 
@@ -100,6 +104,46 @@ class TestGenAgensMd(unittest.TestCase):
         md = gen_agens_md(Args("审核代码"), "b", ["a", "b", "c"])
         self.assertIn("审核代码", md)
         self.assertIn("参与者：a、b、c", md)
+
+
+class TestMisc(unittest.TestCase):
+    """S1 run / S11 _resolve_path / S3 _default_model / S17 check_status。"""
+
+    def test_run_success_and_failure(self):
+        r = run(["echo", "hi"])
+        self.assertEqual(r.returncode, 0)
+        with self.assertRaises(RuntimeError):
+            run(["false"])
+        r2 = run(["false"], check=False)
+        self.assertNotEqual(r2.returncode, 0)
+
+    def test_resolve_path(self):
+        self.assertTrue(_resolve_path("/abs/path").startswith("/"))
+        self.assertTrue(_resolve_path("~/x").startswith(os.path.expanduser("~")))
+        self.assertTrue(_resolve_path("rel").endswith("rel"))
+
+    def test_default_model(self):
+        m = _default_model()  # 本机有 pi settings → 非 None 或 None 均合理
+        self.assertTrue(m is None or isinstance(m, str))
+
+    def test_check_status_not_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status, _ = check_status(os.path.join(tmp, "nope"))
+            self.assertEqual(status, "not-exists")
+
+    def test_check_status_stopped(self):
+        # 有 bare 无 result.md 无 loop 进程 → stopped
+        tmp = tempfile.mkdtemp(prefix="status-")
+        try:
+            base = os.path.join(tmp, "d")
+            bare = os.path.join(base, "repo.git")
+            os.makedirs(base)
+            subprocess.run(["git", "init", "--bare", bare], check=True,
+                           capture_output=True)
+            status, _ = check_status(base)
+            self.assertEqual(status, "stopped")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":

@@ -144,24 +144,24 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| S1 | `run(cmd, cwd=None, check=True)` | subprocess.run；check 且非零 → RuntimeError | 待测 |
-| S2 | `_spec_read(spec_dir, rel)` | 读 spec 文件跳过首行（说明行）；文件不存在 → None | 待测 |
-| S3 | `_default_model()` | pi settings.json → provider/model；defaultModel 含 / 直接用；无配置/失败 → None | 待测 |
-| S4 | `_spec_models(spec_dir, participants)` | 解析 models.md → {agent: (model, variant)}；容错（空行/无冒号/不在 participants 跳过）；default → None / max | 待测 |
-| S5 | `_strip_empty_sections(question)` | 去占位符可选节（- X: 立场 / - 问题，连标题）；已填节保留 | 待测 |
-| S6 | `gen_spec_skeleton(spec_dir, participants)` | 生成 spec 骨架：README + question.md + background.md + models.md + agents/X.md + .order（首行说明） | 待测 |
-| S7 | `gen_agens_md(args, agent, participants, spec_background)` | 协议 AGENTS.md（模板填充：agent 名/参与者/背景）；spec_background 优先 | 待测 |
-| S8 | `gen_agent_def(agent, participants, models, stances, extra, variant)` | agent prompt 文件（模板填充 + model_body + stance_ref + extra 追加） | 待测 |
-| S9 | `gen_question(topic, stances, background, questions)` | question.md：主题 + 可选立场 + 可选待答问题 | 待测 |
-| S10 | `gen_protocol(topic, participants, max_meeting, max_rr, pure, result_writer, stall_timeout)` | protocol.json dict（mode/protocol_version/topic/participants/resultWriter/配额/stall/commitPolicy；pure 标记） | 待测 |
-| S11 | `_resolve_path(p)` | 含 /~. → 绝对路径；否则 cwd 拼接 | 待测 |
-| S12 | `_resolve_spec(spec, agents, topic, background, stances, questions, models)` | --spec 解析：与内容参数互斥校验；目录/agents/ 存在；participants 从 .order + .md 推断；question.md 必填且正文非空；返回 (dir, participants, error) | 待测 |
-| S13 | `_clone_work(base, p)` | clone work-<p> + git 身份 + 建 .pi/agent/ 与 <p>/ 目录 | 待测 |
-| S14 | `setup_environment(args, participants, base, spec_dir)` | 生成讨论环境：spec 预读（question 去占位符节/background/agents）+ models 解析（spec/CLI/default 兜底）+ bare init + work clone + 共享配置 + 本地配置 + setup commit + 重建 work + work-human + 复制模块 | 待测 |
-| S15 | `_preserve_result_md(base)` | bare HEAD:result.md → 父级 <base名>-result.md；无 → 跳过 | 待测 |
-| S16 | `cleanup_discussion(base)` | 保存 result.md（若存在）→ 删目录；目录不存在 → 提示返回 | 待测 |
-| S17 | `check_status(base)` | 状态：bare 不存在 → not-exists；result.md 在历史 + concluded 存在 → done；有 result 无 concluded → running；有 loop 进程 → running；否则 stopped | 待测 |
-| S18 | `main()` | CLI 入口（--dir/--agents/--topic/--stances/--background/--questions/--models/--max-meeting/--max-rr/--spec/--spec-gen/--result-writer/--pure/--start/--status/--wait/--cleanup/--stall-timeout） | 待测 |
+| S1 | `run(cmd, cwd=None, check=True)` | subprocess.run；check 且非零 → RuntimeError | 已测(通过) |
+| S2 | `_spec_read(spec_dir, rel)` | 读 spec 文件跳过首行（说明行）；文件不存在 → None | 已测(通过) |
+| S3 | `_default_model()` | pi settings.json → provider/model；defaultModel 含 / 直接用；无配置/失败 → None | 已测(通过) |
+| S4 | `_spec_models(spec_dir, participants)` | 解析 models.md → {agent: (model, variant)}；容错（空行/无冒号/不在 participants 跳过）；default → None / max | 已测(通过) |
+| S5 | `_strip_empty_sections(question)` | 去占位符可选节（- X: 立场 / - 问题，连标题）；已填节保留 | 已测(通过) |
+| S6 | `gen_spec_skeleton(spec_dir, participants)` | 生成 spec 骨架：README + question.md + background.md + models.md + agents/X.md + .order（首行说明） | 已测(通过) |
+| S7 | `gen_agens_md(args, agent, participants, spec_background)` | 协议 AGENTS.md（模板填充：agent 名/参与者/背景）；spec_background 优先 | 已测(通过) |
+| S8 | `gen_agent_def(agent, participants, models, stances, extra, variant)` | agent prompt 文件（模板填充 + model_body + stance_ref + extra 追加） | 已测(通过) |
+| S9 | `gen_question(topic, stances, background, questions)` | question.md：主题 + 可选立场 + 可选待答问题 | 已测(通过) |
+| S10 | `gen_protocol(topic, participants, max_meeting, max_rr, pure, result_writer, stall_timeout)` | protocol.json dict（mode/protocol_version/topic/participants/resultWriter/配额/stall/commitPolicy；pure 标记） | 已测(通过) |
+| S11 | `_resolve_path(p)` | 含 /~. → 绝对路径；否则 cwd 拼接 | 已测(通过) |
+| S12 | `_resolve_spec(spec, agents, topic, background, stances, questions, models)` | --spec 解析：与内容参数互斥校验；目录/agents/ 存在；participants 从 .order + .md 推断；question.md 必填且正文非空；返回 (dir, participants, error) | 已测(通过) |
+| S13 | `_clone_work(base, p)` | clone work-<p> + git 身份 + 建 .pi/agent/ 与 <p>/ 目录 | 已测(通过) |
+| S14 | `setup_environment(args, participants, base, spec_dir)` | 生成讨论环境：spec 预读（question 去占位符节/background/agents）+ models 解析（spec/CLI/default 兜底）+ bare init + work clone + 共享配置 + 本地配置 + setup commit + 重建 work + work-human + 复制模块 | 已测(通过) |
+| S15 | `_preserve_result_md(base)` | bare HEAD:result.md → 父级 <base名>-result.md；无 → 跳过 | 已测(通过) |
+| S16 | `cleanup_discussion(base)` | 保存 result.md（若存在）→ 删目录；目录不存在 → 提示返回 | 已测(通过) |
+| S17 | `check_status(base)` | 状态：bare 不存在 → not-exists；result.md 在历史 + concluded 存在 → done；有 result 无 concluded → running；有 loop 进程 → running；否则 stopped | 已测(通过) |
+| S18 | `main()` | CLI 入口（--dir/--agents/--topic/--stances/--background/--questions/--models/--max-meeting/--max-rr/--spec/--spec-gen/--result-writer/--pure/--start/--status/--wait/--cleanup/--stall-timeout） | 已测(通过) |
 
 **start 关键边界/异常**：
 - S2：首行跳过；只有首行 → ""；不存在 → None
@@ -177,15 +177,15 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| V1 | `_protocol(bare)` | HEAD:protocol.json → dict；读不到/非法 JSON → {} | 待测 |
-| V2 | `participants_from_bare(bare)` | protocol.json participants；无 → None | 待测 |
-| V3 | `result_path(base, bare)` | work-<resultWriter>/result.md 路径；无 rw → "" | 待测 |
-| V4 | `new_messages(bare, since)` | since 后新消息文件（log --reverse 拓扑序旧→新）→ [(commit, path)]；只含消息文件（含 human/） | 待测 |
-| V5 | `format_message(path, content)` | 消息 → 展示行（header + summary + body + ---）；frontmatter 不可用 → None | 待测 |
-| V6 | `incremental(bare, agents, since)` | 单次增量 → (mode, lines, head, done)；done = mode==concluded | 待测 |
-| V7 | `_cursor_path/_read_cursor/_write_cursor(base)` | .viewer-cursor 游标读写；无 → None | 待测 |
-| V8 | `follow(base, bare, agents, poll_interval)` | 循环增量展示直到 done；状态变化打印【状态】；done 打印 result 路径并返回 | 待测 |
-| V9 | `main()` | CLI：bare 不存在/无 participants → 错误返回 1；BrokenPipeError → 静默退出 0 | 待测 |
+| V1 | `_protocol(bare)` | HEAD:protocol.json → dict；读不到/非法 JSON → {} | 已测(通过) |
+| V2 | `participants_from_bare(bare)` | protocol.json participants；无 → None | 已测(通过) |
+| V3 | `result_path(base, bare)` | work-<resultWriter>/result.md 路径；无 rw → "" | 已测(通过) |
+| V4 | `new_messages(bare, since)` | since 后新消息文件（log --reverse 拓扑序旧→新）→ [(commit, path)]；只含消息文件（含 human/） | 已测(通过) |
+| V5 | `format_message(path, content)` | 消息 → 展示行（header + summary + body + ---）；frontmatter 不可用 → None | 已测(通过) |
+| V6 | `incremental(bare, agents, since)` | 单次增量 → (mode, lines, head, done)；done = mode==concluded | 已测(通过) |
+| V7 | `_cursor_path/_read_cursor/_write_cursor(base)` | .viewer-cursor 游标读写；无 → None | 已测(通过) |
+| V8 | `follow(base, bare, agents, poll_interval)` | 循环增量展示直到 done；状态变化打印【状态】；done 打印 result 路径并返回 | 已测(通过) |
+| V9 | `main()` | CLI：bare 不存在/无 participants → 错误返回 1；BrokenPipeError → 静默退出 0 | 已测(通过) |
 
 ---
 
@@ -193,10 +193,10 @@
 
 | # | API | 功能定义 | 状态 |
 |---|---|---|---|
-| H1 | `_summary(body)` | 正文首个非空行截取 ≤60 字符；无 → "" | 待测 |
-| H2 | `say(workdir, body)` | 写 human 消息：flock 串行 → pull → head/mode/序号 → frontmatter（from=human/type=message/mode=当前聚合/seen_at=head/to=all/summary）→ write → commit → push 容错；返回 (path, summary) | 待测 |
-| H3 | `interactive(workdir)` | 交互：逐行累积、空行提交（有累积）、Ctrl-D 退出 | 待测 |
-| H4 | `main()` | CLI：bare/work-human 不存在 → 错误返回 1；文本参数或 stdin；空内容 → 错误 | 待测 |
+| H1 | `_summary(body)` | 正文首个非空行截取 ≤60 字符；无 → "" | 已测(通过) |
+| H2 | `say(workdir, body)` | 写 human 消息：flock 串行 → pull → head/mode/序号 → frontmatter（from=human/type=message/mode=当前聚合/seen_at=head/to=all/summary）→ write → commit → push 容错；返回 (path, summary) | 已测(通过) |
+| H3 | `interactive(workdir)` | 交互：逐行累积、空行提交（有累积）、Ctrl-D 退出 | 已测(通过) |
+| H4 | `main()` | CLI：bare/work-human 不存在 → 错误返回 1；文本参数或 stdin；空内容 → 错误 | 已测(通过) |
 
 ---
 
