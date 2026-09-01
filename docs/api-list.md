@@ -216,11 +216,17 @@
 
 ## 组合逻辑验证（API 清单应符合设计流程）
 
-1. **setup 链**：S14（gen_protocol + gen_agens_md + gen_agent_def + question/background/models 注入）→ E1/E2 读到一致的 participants/resultWriter
-2. **消息写入链**：responder 写内容文件 → E15 commit_new_files（C5 校验 + RR next）→ F4/F5 commit+push → bare 可见
-3. **状态判定链**：E3/E5（bare 组装）→ C9 aggregate_mode → E21 分支分派
-4. **配额链**：E9（meeting speak）+ E10（human count）→ ⑤.2 冻结判定
-5. **RR 链**：C8 can_start_rr → E13 pass（带 next）→ E7 rr_next_speaker → 轮转
-6. **收尾链**：E19 finalize（E18 校验 + E20 幂等 commit + concluded）→ E21 退出 → S17 done 判定（result.md + concluded）
-7. **human 通道**：H2 say（E10 配额增量数据源）→ V4 viewer 展示 → agents 响应
-8. **清理链**：S16 cleanup（S15 保存 result）→ loop 自退（repo.git 消失检测 + L12 分片）→ 无残留
+> 动态拼接验证 2026-09-01（tests/test_flow_composition.py，9 测试全绿）：
+> 用真实 API 逐链拼装（非 agent_loop 整体），断链点 = 清单或实现漏洞。
+
+1. **setup 链**：S14（gen_protocol + gen_agens_md + gen_agent_def + question/background/models 注入）→ E1/E2 读到一致的 participants/resultWriter ✅（chain1）
+2. **消息写入链**：responder 写内容文件 → E15 commit_new_files（C5 校验 + RR next）→ F4/F5 commit+push → bare 可见 ✅（chain2）
+3. **状态判定链**：E3/E5（bare 组装）→ C9 aggregate_mode → E21 分支分派 ✅（chain3）
+4. **配额链**：E9（meeting speak）+ E10（human count）→ ⑤.2 冻结判定 ✅（chain4）
+5. **RR 链**：C8 can_start_rr → E13 pass（带 next）→ E7 rr_next_speaker → 轮转 ✅（chain5）
+6. **收尾链**：E19 finalize（E18 校验 + E20 幂等 commit + concluded）→ E21 退出 → S17 done 判定（result.md + concluded）✅（chain6）
+7. **human 通道**：H2 say（E10 配额增量数据源）→ V4 viewer 展示 → agents 响应 ✅（chain7）
+8. **清理链**：S16 cleanup（S15 保存 result）→ loop 自退（repo.git 消失检测 + L12 分片）→ 无残留 ✅（chain8）
+
+**拼接结论**：全部链输入输出衔接无断点；API 清单与设计流程一致。
+后续逐 API 单测阶段以本清单为基准逐条细化断言。
