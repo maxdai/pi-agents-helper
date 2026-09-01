@@ -1,6 +1,6 @@
 ---
 description: 以 tmux 双屏模式启动多 agent 讨论（用户明确指定 tmux 时用）
-argument-hint: ""<讨论主题>" [agents 数量]"
+argument-hint: '"<讨论主题>" [agents 数量]'
 ---
 
 # Agents Helper Tmux（tmux 双屏模式）

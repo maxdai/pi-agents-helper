@@ -1,6 +1,6 @@
 ---
 description: 启动带 human 插话通道的多 agent 讨论（默认模式，pi-web 可用）
-argument-hint: ""<讨论主题>" [agents 数量]"
+argument-hint: '"<讨论主题>" [agents 数量]'
 ---
 
 # Agents Helper（多 agent 讨论 + human 插话，默认模式）
