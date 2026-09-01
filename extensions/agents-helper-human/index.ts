@@ -20,10 +20,34 @@
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
-// 项目绝对路径（AGENTS.md 维护规则：SKILL/扩展引用必须用绝对路径）
-const HELPER_DIR = "/root/pi-agents-helper";
-const SAYER = path.join(HELPER_DIR, "human_sayer.py");
+// ---- 自定位（方案 1：import.meta.url，用户 2026-09-01 定）----
+// 扩展从包内加载时（pi install），向上查找包根（package.json name = 包名），
+// 推导 wrapper 与 human_sayer.py——零硬编码，包移到哪都能工作。
+// 复制安装（拆散包结构）时找不到包根 → 回退开发机路径。
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function findPackageRoot(start: string, pkgName: string): string | null {
+  let dir = start;
+  for (let i = 0; i < 8; i++) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+      if (pkg.name === pkgName) return dir;
+    } catch {
+      // 继续向上
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const PACKAGE_ROOT = findPackageRoot(__dirname, "pi-agents-helper");
+const SAYER = PACKAGE_ROOT
+  ? path.join(PACKAGE_ROOT, "human_sayer.py")
+  : "/root/pi-agents-helper/human_sayer.py"; // 复制安装退化（开发机）
 
 /** 按 (cwd, sessionId) 推导当前讨论目录：优先 discuss-<sid>-<stamp>（session
  *  隔离），找不到回退 discuss-<stamp>（无 sid 目录——bash:false 缺失时

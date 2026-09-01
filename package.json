@@ -6,6 +6,9 @@
   "private": false,
   "license": "MIT",
   "pi": {
+    "extensions": [
+      "./extensions"
+    ],
     "prompts": [
       "./prompts"
     ]
@@ -17,7 +20,8 @@
     "README.md",
     "AGENTS.md",
     "docs/pi-helper-design.md",
-    "prompts"
+    "prompts",
+    "docs/background-distillation.md"
   ],
   "keywords": [
     "pi",
