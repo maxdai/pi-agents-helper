@@ -174,14 +174,15 @@ python3 human_viewer.py <目录> --follow
 wrapper 命令一览：
 
 ```bash
-./scripts/discuss.sh --prepare "<问题>" [--background "<背景>"]  # 生成 spec
-./scripts/discuss.sh --start <spec目录>                          # 创建+启动（默认 a,b,c / max-meeting 10 / max-rr 5）
+./scripts/discuss.sh --prepare "<问题>" [--agents "4"|"x,y"] [--background "<背景>"]  # 生成 spec
+./scripts/discuss.sh --start <spec目录>                          # 创建+启动（agents 从 spec 读）
 ./scripts/discuss.sh --status <目录> | --wait <目录> | --cleanup <目录>
 ./scripts/discuss.sh --view <目录> [--since <ref>]               # 增量查看（末尾输出 HEAD= 游标）
 ./scripts/discuss.sh --say <目录> "<文本>"                        # 插话
 ```
 
-默认参数：agents=`a,b,c`、`--max-meeting 10`、`--max-rr 5`；子讨论 agents 禁用
+默认参数：agents=`a,b,c`（`--prepare --agents 4` 生成 a..d；`--agents "x,y"` 自定义名称；
+`human` 是保留名）、`--max-meeting 10`、`--max-rr 5`；子讨论 agents 禁用
 `magic-context`/`aft` 扩展（项目级 `.pi/settings.json`）。
 
 ## 依赖与平台

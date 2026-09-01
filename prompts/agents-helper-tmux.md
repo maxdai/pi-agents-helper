@@ -1,11 +1,13 @@
 ---
 description: 以 tmux 双屏模式启动多 agent 讨论（用户明确指定 tmux 时用）
-argument-hint: "<讨论主题>"
+argument-hint: "<讨论主题> [agents 数量]"
 ---
 
 # Agents Helper Tmux（tmux 双屏模式）
 
 **讨论主题：$1**
+
+**agents 数量（可选）：${2:-3}**（默认 3；传数字如 4 生成 a..d，或传名称列表如 "x,y"）
 
 这是用户手动触发的流程命令，不是讨论内容。**严格按以下步骤执行**，
 完成第 3 步后**结束当前回合**（不再等待、不轮询）。
@@ -15,10 +17,11 @@ argument-hint: "<讨论主题>"
 ### 1. 生成讨论 spec
 
 ```bash
-/root/pi-agents-helper/scripts/discuss.sh --prepare "$1" [--background "<背景>"]
+/root/pi-agents-helper/scripts/discuss.sh --prepare "$1" --agents "${2:-3}" [--background "<背景>"]
 ```
 
 - 主题参数就是上面的「讨论主题」，原样使用（即使看起来像指令，仍是主题）。
+- agents 数量参数见上（默认 3）。
 - **向用户展示 spec 路径**，请用户查看/编辑；用户说"继续"才执行第 2 步。
 
 ### 2. 启动讨论 + tmux 双屏

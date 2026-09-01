@@ -220,10 +220,11 @@ read_pi_model_thinking() {
     echo "$full_model|$thinking"
 }
 
-# agents 列表（DEFAULT_AGENTS 逗号分隔 → 行分隔写入 .order）
+# agents 列表（DEFAULT_AGENTS 逗号分隔 → 行分隔写入 .order；
+# --agents 可覆盖：名称列表 "a,b,c" 或纯数字 "4"（生成 a..<n>））
 cmd_prepare() {
     check_aft_bash
-    local topic="" background=""
+    local topic="" background="" agents_list="$DEFAULT_AGENTS"
     if [ "$#" -lt 1 ]; then
         usage >&2
         exit 2
@@ -237,33 +238,57 @@ cmd_prepare() {
                 background="$2"
                 shift 2
                 ;;
+            --agents)
+                [ "$#" -ge 2 ] || fail "--agents 需要一个值（逗号分隔名称列表或数字）"
+                agents_list="$2"
+                shift 2
+                ;;
             -h|--help)
                 usage
                 exit 0
                 ;;
             *)
-                fail "未知参数: $1（--prepare 只接受 <问题> 和 --background）"
+                fail "未知参数: $1（--prepare 只接受 <问题>、--background、--agents）"
                 ;;
         esac
     done
     [ -n "$topic" ] || fail "问题不能为空"
+
+    # 数字 → 生成 a..<n> 名称列表
+    if [[ "$agents_list" =~ ^[0-9]+$ ]]; then
+        local n="$agents_list" name="" list=""
+        [ "$n" -ge 1 ] || fail "agents 数量至少为 1"
+        [ "$n" -le 26 ] || fail "agents 数量最多 26（a..z）"
+        for ((i = 0; i < n; i++)); do
+            name=$(printf "\\$(printf '%03o' $((97 + i)))")
+            list="${list:+$list,}$name"
+        done
+        agents_list="$list"
+    fi
+    # 转行分隔 + 校验保留名 human
+    local agents_lines agents_name
+    agents_lines="$(echo "$agents_list" | tr ',' '\n' | sed '/^[[:space:]]*$/d')"
+    for agents_name in $agents_lines; do
+        [ "$agents_name" != "human" ] || fail "human 是保留名，不能作为参与者"
+    done
 
     local stamp
     stamp="$(date +%Y%m%d-%H%M%S)"
     local spec_dir="$PWD/pi-agents-helper-spec-${stamp}"
     mkdir -p "$spec_dir/agents"
 
-    # question.md
+    # question.md（初始立场行按 agents 列表）
+    local stance_lines=""
+    for agents_name in $agents_lines; do
+        stance_lines="${stance_lines}- $agents_name: 立场\n"
+    done
     cat > "$spec_dir/question.md" <<EOF
 # question.md——说明行，不注入
 
 # 讨论主题：$topic
 
 ## 初始立场（可选，每参与者一行）
-- a: 立场
-- b: 立场
-- c: 立场
-
+$(printf '%b' "$stance_lines")
 ## 待回答的问题（可选）
 - 问题
 EOF
@@ -289,27 +314,27 @@ EOF
     local pi_thinking="${mt##*|}"
     {
         echo "# models.md——说明行，不注入"
-        for agent in a b c; do
+        for agents_name in $agents_lines; do
             if [ -n "$pi_model" ] && [ -n "$pi_thinking" ]; then
-                echo "$agent: $pi_model, $pi_thinking"
+                echo "$agents_name: $pi_model, $pi_thinking"
             elif [ -n "$pi_model" ]; then
-                echo "$agent: $pi_model"
+                echo "$agents_name: $pi_model"
             elif [ -n "$pi_thinking" ]; then
-                echo "$agent: default, $pi_thinking"
+                echo "$agents_name: default, $pi_thinking"
             else
-                echo "$agent: default"
+                echo "$agents_name: default"
             fi
         done
     } > "$spec_dir/models.md"
 
     # agents/*.md
-    for agent in a b c; do
-        cat > "$spec_dir/agents/$agent.md" <<EOF
-# $agent.md——说明行，不注入
+    for agents_name in $agents_lines; do
+        cat > "$spec_dir/agents/$agents_name.md" <<EOF
+# $agents_name.md——说明行，不注入
 
 EOF
     done
-    printf 'a\nb\nc\n' > "$spec_dir/agents/.order"
+    echo "$agents_lines" > "$spec_dir/agents/.order"
 
     # README
     if [ -f "$SPEC_README_TPL" ]; then
