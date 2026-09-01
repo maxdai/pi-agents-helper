@@ -1,6 +1,6 @@
 {
   "name": "pi-agents-helper",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pi skill + wrapper for pi-agents-helper: launch a multi-agent discussion with human interjection channel from a Pi session.",
   "type": "module",
   "private": false,
