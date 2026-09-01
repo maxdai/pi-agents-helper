@@ -234,10 +234,12 @@ def wake_llm(workdir, agent, prompt, pure=False):
             # 唤醒阻塞不再屏蔽自退出（完善流程：cleanup 是唯一清理操作，
             # 无需手动 kill；用户 2026-09-01 原则：不固定为错误操作+补丁）。
             out = err = None
+            normal = False
             deadline = time.time() + MAX_WAKE_SEC
             while time.time() < deadline:
                 try:
                     out, err = proc.communicate(timeout=15)
+                    normal = True
                     break  # 正常结束
                 except subprocess.TimeoutExpired:
                     if not os.path.isdir(os.path.join(base, "repo.git")):
@@ -245,10 +247,11 @@ def wake_llm(workdir, agent, prompt, pure=False):
                         proc.terminate()
                         proc.communicate()
                         raise SystemExit(0)  # 干净退出（SystemExit 不被 except 捕获）
-            # 总超时：保持原语义（run(timeout) 抛 TimeoutExpired → 上层可恢复重试）
-            proc.terminate()
-            proc.communicate()
-            raise subprocess.TimeoutExpired(cmd, MAX_WAKE_SEC)
+            if not normal:
+                # 总超时：保持原语义（run(timeout) 抛 TimeoutExpired → 上层可恢复重试）
+                proc.terminate()
+                proc.communicate()
+                raise subprocess.TimeoutExpired(cmd, MAX_WAKE_SEC)
         finally:
             _current_proc = None
         r = subprocess.CompletedProcess(cmd, proc.returncode, out or "", err or "")
