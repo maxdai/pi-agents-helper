@@ -105,6 +105,16 @@ class TestGenAgensMd(unittest.TestCase):
         self.assertIn("审核代码", md)
         self.assertIn("参与者：a、b、c", md)
 
+    def test_main_pi_cwd_injected(self):
+        """主 pi cwd 程序化注入（2026-09-02）：传入时出现节，未传时隐藏。"""
+        md = gen_agens_md(Args(), "a", ["a", "b"], main_pi_cwd="/x/proj")
+        self.assertIn("主 pi 工作目录", md)
+        self.assertIn("/x/proj", md)
+        # 未传（手动场景）→ 节隐藏
+        md2 = gen_agens_md(Args(), "a", ["a", "b"])
+        self.assertNotIn("主 pi 工作目录", md2)
+        self.assertNotIn("（未提供）", md2)
+
 
 class TestMisc(unittest.TestCase):
     """S1 run / S11 _resolve_path / S3 _default_model / S17 check_status。"""

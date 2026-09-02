@@ -193,10 +193,16 @@ def gen_spec_skeleton(spec_dir, participants):
         f.write("\n".join(participants) + "\n")
 
 
-def gen_agens_md(args, agent, participants, spec_background=None):
-    """meeting 协议 AGENTS.md（共享协议 + background；身份/立场在 agent 定义/question.md）。
+def gen_agens_md(args, agent, participants, spec_background=None,
+                 main_pi_cwd=None):
+    """meeting 协议 AGENTS.md（共享协议 + background；身份/立场在 agent
+    定义/question.md）。
 
     spec_background: spec 提供时优先（设计 16.6），否则 args.background，否则占位。
+    main_pi_cwd: 主 pi 工作目录（程序化注入，用户 2026-09-02）——直接进
+      AGENTS.md（注入 system prompt 的载体），不经 background.md 转接：
+      background.md 是人工编辑的讨论内容（用户审核 spec 时看），cwd 是
+      环境事实（程序化写入），分开保持各自干净。None（手动场景）→ 节隐藏。
     """
     others = [p for p in participants if p != agent]
     sample = others[0] if others else "x"
@@ -204,13 +210,18 @@ def gen_agens_md(args, agent, participants, spec_background=None):
                   else (args.background or "（无）"))
     with open(os.path.join(TPL_DIR, "AGENTS.md.tpl")) as f:
         tpl = f.read()
-    return tpl.format(
+    out = tpl.format(
         AGENT_NAME=agent,
         N=str(len(participants)),
         PARTICIPANTS_DISPLAY="、".join(participants),
         SAMPLE_OTHER=sample,
         BACKGROUND=background,
+        MAIN_PI_CWD=main_pi_cwd or "（未提供）",
     )
+    if not main_pi_cwd:
+        # 手动场景不注入 cwd 节（隐藏，不写占位）
+        out = out.replace("\n## 主 pi 工作目录（程序化注入）\n\n讨论环境的主 pi 在 `（未提供）` 目录运行。与该目录相关的信息\n（源码、文档、配置）可在其中查找：如有需要可查看相关文件（如\nREADME.md、docs/、源码），以获取比本背景更详细的信息。\n", "")
+    return out
 
 
 def gen_agent_def(agent, participants, models=None, stances=None, extra=None,
@@ -441,7 +452,8 @@ def setup_environment(args, participants, base, spec_dir=None):
         run(["git", "config", "user.name", GIT_USER], cwd=workdir)
         run(["git", "config", "user.email", GIT_EMAIL], cwd=workdir)
         with open(os.path.join(workdir, "AGENTS.md"), "w") as f:
-            f.write(gen_agens_md(args, p, participants, spec_background))
+            f.write(gen_agens_md(args, p, participants, spec_background,
+                                 main_pi_cwd=os.getcwd()))
         mv = models.get(p, (None, "max"))
         with open(os.path.join(workdir, ".pi/agent", f"{p}.md"), "w") as f:
             f.write(gen_agent_def(p, participants, {p: mv[0]} if mv[0] else None,
