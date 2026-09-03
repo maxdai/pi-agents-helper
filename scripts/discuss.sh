@@ -102,6 +102,12 @@ cmd_cleanup() {
     local dir="$1"
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
+    # 清理同 session 的 prepare 背景文件（agents-helper-prepare 产物；
+    # 不变式：cleanup 后无 discuss_prepare 文件。不存在则幂等跳过）
+    if [ -n "${PI_SESSION_ID:-}" ] && [ -f "discuss_prepare_${PI_SESSION_ID}.md" ]; then
+        rm -f "discuss_prepare_${PI_SESSION_ID}.md"
+        echo "[cleanup] 已删除 discuss_prepare_${PI_SESSION_ID}.md"
+    fi
 }
 
 cmd_view() {

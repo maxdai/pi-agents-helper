@@ -449,6 +449,7 @@ Ctrl-D 退出——粘贴多行/打字统一语义（替换原 bracketed paste �
 | 路径方案 | 固定路径（用户 2026-09-01 定）：prompt 引用 wrapper/规范/viewer 用固定路径 ~/.pi/agent/npm/node_modules/pi-agents-helper/...（pi install 用户级安装路径固定，零脚本零副本；只支持用户级安装，项目级不支持）；开发机建 symlink 指向仓库。postinstall 渲染否决（副本生命周期=新持久状态+事实源分裂+开发机分叉+脚本环境依赖）；工具方案否决（LLM 多一步流程控制，用户不希望依赖 LLM 控制流程） | 用户 2026-09-01 |
 | tmux 入口 | 独立 skill `agents-helper-tmux`：用户明确指定才用，之后操作全在 tmux 内 | 用户 2026-08-31 |
 | 放弃 tmux | **整个 tmux 形态放弃（2026-09-01）**：删 prompts/agents-helper-tmux.md；主 pi 代理形态已成熟（!! 流式观看 + 扩展插话），tmux 无独立价值。human_sayer -i 交互模式保留（终端手动插话无害）；README/AGENTS.md/背景规范引用同步清理。决策记录历史条目（tmux 双屏/定位/下屏高度/入口）保留为历史 | 用户 2026-09-01 |
+| 两 prompt 拆分背景提炼 | **agents-helper-prepare + agents-helper 两步**（用户 2026-09-02 定）：背景提炼（LLM 思考型）与启动讨论（流程型）分离，各自单一职责——解决「提炼变重会干扰 skill 流程」；prepare 产 discuss_prepare_<sid>.md（当前目录，含主题+背景，sid 用 PI_SESSION_ID）；cleanup 删同 sid 文件（不变式：cleanup 后无 prepare 文件，机制判断非 LLM 判断）；第一步审核 spec 时手动复制背景进 background.md，全流程自动化（wrapper 读文件）待后续；文件格式若 LLM 漂移则脚本化（--save-prepare，LLM 只传内容） | 用户 2026-09-02 |
 | pi-web 观看 | `!!human_viewer.py <dir> --follow` 流式实时（excludeFromContext，不进 LLM）；Esc 中断看说交替 | 用户 2026-08-31 改 pi-web + 实测 |
 | 主 pi 轮询 | 只报状态不转述全文；观看零 token | 用户 2026-08-31 |
 
