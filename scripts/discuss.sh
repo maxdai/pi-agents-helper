@@ -99,7 +99,11 @@ cmd_wait() {
 }
 
 cmd_cleanup() {
-    local dir="$1"
+    # 路径规范化：裸目录名（无路径符）会被 start_discussion 加 discussion-
+    # 前缀导致找不到（实测 2026-09-03）——readlink -f 转绝对路径，
+    # 含 / 后 start_discussion 直接使用
+    local dir
+    dir="$(readlink -f "$1")"
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
     # 清理同 session 的 prepare 背景文件（agents-helper-prepare 产物；

@@ -63,6 +63,23 @@ class TestCleanupRemovesPrepareFile(unittest.TestCase):
         self.assertFalse(os.path.exists(pf))
         self.assertIn(f"已删除 discuss_prepare_{self.sid}.md", r.stdout)
 
+    def test_cleanup_bare_name_normalized(self):
+        """裸目录名（无路径符）cleanup：readlink -f 规范化后正常删除
+        （实测 2026-09-03：裸名被 start_discussion 加 discussion- 前缀，
+        目录残留）。"""
+        pf = os.path.join(self.tmp, f"discuss_prepare_{self.sid}.md")
+        with open(pf, "w") as f:
+            f.write("x")
+        base_name = os.path.basename(self.base)
+        r = subprocess.run(
+            [WRAPPER, "--cleanup", base_name], cwd=self.tmp,
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "PI_SESSION_ID": self.sid})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("已删除目录", r.stdout)
+        self.assertFalse(os.path.isdir(self.base))
+        self.assertFalse(os.path.exists(pf))
+
     def test_no_prepare_file_idempotent(self):
         """无 prepare 文件：cleanup 正常完成，不报错。"""
         r = self._cleanup(self.tmp, self.base)
