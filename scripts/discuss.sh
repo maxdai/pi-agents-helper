@@ -396,17 +396,34 @@ cmd_start() {
         fail "讨论环境创建失败，请查看上方输出"
     fi
 
-    # 第 2 步：在每个 work 目录写入项目级 .pi/settings.json，禁用 magic-context 和 aft
+    # 第 2 步：在每个 work 目录写入项目级 .pi/settings.json，屏蔽 magic-context 和 aft
+    # （pi config 权威写法：项目 delta = {source, autoload:false} + 资源
+    # patterns 逐文件禁用——两包各只有 1 个扩展 dist/index.js → "-dist/index.js"。
+    # 实测 2026-09-03 两次纠错：① 原 autoload:false 无 patterns = delta 空
+    # 操作（用户级包照常全量加载，aft 进程照常 spawn）② 无 autoload:false
+    # 的资源 [] 形态 = project wins → 触发项目级 npm install 到 .pi/npm
+    # （每 work 一次 install magic-context）。delta 不装项目副本）
     local agent
-    for agent in a b c; do
+    # agents 列表来自 spec（--agents 参数化后不能硬编码 a b c——
+    # 自定义数量/名称时硬编码会漏写 work-d/work-x 的 settings，
+    # 2026-09-03 顺手修复）
+    for agent in $(cat "$spec_dir/agents/.order" 2>/dev/null); do
         local workdir="$dir_path/work-$agent"
         if [ -d "$workdir" ]; then
             mkdir -p "$workdir/.pi"
             cat > "$workdir/.pi/settings.json" <<'SETTINGS_EOF'
 {
   "packages": [
-    { "source": "npm:@cortexkit/pi-magic-context", "autoload": false },
-    { "source": "npm:@cortexkit/aft-pi", "autoload": false }
+    {
+      "source": "npm:@cortexkit/pi-magic-context",
+      "autoload": false,
+      "extensions": ["-dist/index.js"]
+    },
+    {
+      "source": "npm:@cortexkit/aft-pi",
+      "autoload": false,
+      "extensions": ["-dist/index.js"]
+    }
   ]
 }
 SETTINGS_EOF
