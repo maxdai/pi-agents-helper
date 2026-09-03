@@ -29,7 +29,7 @@ DEFAULT_MAX_RR=5
 usage() {
     cat <<'USAGE_EOF'
 用法:
-  $0 --prepare "<问题>" [--background "<背景>"]
+  $0 --prepare "<问题>" [--background "<背景>"] [--agents "a,b,c"|4]
   $0 --start <spec目录>
   $0 --status <dir>
   $0 --wait <dir>
@@ -39,6 +39,9 @@ usage() {
 
 默认讨论参数:
   agents=a,b,c  max-meeting=10  max-rr=5
+
+--agents: 逗号分隔名称列表（如 "x,y"）或纯数字（如 4 → 生成 a..d）；
+          human 是保留名，不能作为参与者
 
 human 通道:
   --view: 增量查看讨论进展（--since 之后的新消息+状态；末尾输出 HEAD=<hash>，主 pi 记录作下轮 --since）
@@ -430,6 +433,11 @@ SETTINGS_EOF
         fi
     done
 
+    # resultWriter 提示文案（rm spec 前提取：最后参与者；agents 参数化后
+    # 不能硬编码 c——--agents 4/x,y 时 work-c 不存在会误导）
+    local rw_name
+    rw_name="$(tail -1 "$spec_dir/agents/.order" 2>/dev/null)"
+
     # 临时 spec 已被消费，删除
     rm -rf "$spec_dir"
 
@@ -454,7 +462,7 @@ SETTINGS_EOF
 说明:
 - human 通道：--view 增量查看（主 pi 记录末尾 HEAD 作下轮 --since）；
   --say 插话（agents 可见并可回应；已冻结 agent 不响应）
-- 完成后 result.md 默认由 resultWriter=c 生成，位于 $dir_path/work-c/result.md
+- 完成后 result.md 默认由 resultWriter=${rw_name:-末位参与者} 生成，位于 $dir_path/work-${rw_name:-c}/result.md
 - 读取 result.md 后请执行 --cleanup 清理讨论目录
 OUTPUT_EOF
 }

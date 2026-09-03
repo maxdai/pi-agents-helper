@@ -588,7 +588,7 @@ def check_status(base):
         # 有 result.md 但无 concluded → 收尾进行中（等 concluded 落盘）
         return "running", None
     # loop 进程是否存活（目录边界——审核#23：防止 discussion-1 匹配
-    # discussion-1x；与 cleanup 的 LIKE 边界同族）
+    # discussion-1x）
     r = run(["pgrep", "-f",
              f"meeting_loop.py.*{re.escape(base)}( |$|/)"], check=False)
     if r.stdout.strip():
