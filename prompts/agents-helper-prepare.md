@@ -45,7 +45,9 @@ argument-hint: '"<讨论主题>"'
 
 告知用户：
 - 文件路径（完整）
-- 下一步：触发 `/agents-helper` 启动讨论（启动后审核 spec 时，可把本文件
-  「# 背景」节内容复制进 spec 的 background.md）
+- 下一步：触发 `/agents-helper` 启动讨论——wrapper 会自动检测本文件并
+  把引用写进各 agent 的 AGENTS.md（「讨论背景文件」节，agents 需要时
+  可读取）；如需把背景强制嵌入（必读），可在审核 spec 时把「# 背景」
+  节内容复制进 background.md（可选加强）
 
 **然后立即结束当前回合。**

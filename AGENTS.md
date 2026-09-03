@@ -155,8 +155,9 @@ AGENTS.md + api-list.md 恢复。
   是否还有声明，重跑该命令即可。
 - **修改 prompt/扩展后 reload 生效**（pi 从包/仓库实时读取；本地路径注册
   或 symlink 下无需重装）
-- **当前形态**（2026-09-02）：prompt × 2（agents-helper-prepare 背景提炼 +
+- **当前形态**（2026-09-03）：prompt × 2（agents-helper-prepare 背景提炼 +
   agents-helper 启动讨论）+ extension × 1（agents-helper-human 插话）——
   skill 已全部迁出；扩展 import.meta.url 自定位（方案 1）；tmux 形态已放弃；
-  两步拆分：prepare 产 discuss_prepare_<sid>.md（cleanup 删），审核 spec 时
-  手动复制背景（全流程自动化待后续）
+  两步拆分：prepare 产 discuss_prepare_<sid>.md（cleanup 删）；--start 时
+  wrapper 自动检测该文件并把引用写进各 agent AGENTS.md（讨论背景文件节，
+  懒读取）；复制进 background.md（强制嵌入）留作人工审核 spec 时可选加强

@@ -65,16 +65,17 @@ ls ~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh  # 文件存
 
 ```
 /agents-helper-prepare "<讨论主题>"            # 第一步：提炼背景 → discuss_prepare_<sid>.md
-/agents-helper "<主题>" [agents 数量]        # 第二步：启动讨论（审核 spec 时手动复制背景）
+/agents-helper "<主题>" [agents 数量]        # 第二步：启动讨论（wrapper 自动引用 prepare 文件）
 /agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
 ```
 
 两步拆分（2026-09-02）：背景提炼（LLM 思考型）与启动讨论（流程型）分离为
 两个 prompt，各自单一职责。`agents-helper-prepare` 只提炼背景写入
 `discuss_prepare_<sid>.md`（当前目录，含主题+背景）；cleanup 时自动删除
-该文件（不变式：cleanup 后无 prepare 文件）。`agents-helper` 流程不变，
-审核 spec 时把 prepare 文件的背景节复制进 background.md（手动；全流程
-自动化待后续）。
+该文件（不变式：cleanup 后无 prepare 文件）。启动讨论时 wrapper 自动
+检测该文件，把引用写进各 agent 的 AGENTS.md（「讨论背景文件」节——
+agents 需要时可读取）；如需把背景强制嵌入（必读），可在审核 spec 时把
+背景节内容复制进 background.md（可选加强）。
 
 ### 用命令行（直接操作）
 
