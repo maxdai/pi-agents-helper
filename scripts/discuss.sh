@@ -373,7 +373,15 @@ cmd_start() {
     local dir_path="$PWD/$dir_name"
 
     # 第 1 步：创建讨论环境（不启动）
-    if ! "$PYTHON" "$START_DISCUSSION" --dir "$dir_path" --spec "$spec_dir" --max-meeting "$DEFAULT_MAX_MEETING" --max-rr "$DEFAULT_MAX_RR"; then
+    # prepare 背景文件（agents-helper-prepare 产物，主 pi cwd 下）：存在则
+    # 以绝对路径传入（agents 在 work-<agent> 子目录，相对路径找不到）——
+    # 机制判断非 LLM 判断；不存在不传参（agents-helper 单独跑也正常）
+    local prepare_args=()
+    if [ -n "${PI_SESSION_ID:-}" ] && [ -f "discuss_prepare_${PI_SESSION_ID}.md" ]; then
+        prepare_args=(--prepare-file "$(readlink -f "discuss_prepare_${PI_SESSION_ID}.md")")
+        echo "[start] 检测到背景文件：${prepare_args[1]}（将写入各 agent AGENTS.md 引用）"
+    fi
+    if ! "$PYTHON" "$START_DISCUSSION" --dir "$dir_path" --spec "$spec_dir" --max-meeting "$DEFAULT_MAX_MEETING" --max-rr "$DEFAULT_MAX_RR" "${prepare_args[@]+"${prepare_args[@]}"}"; then
         fail "讨论环境创建失败，请查看上方输出"
     fi
 
