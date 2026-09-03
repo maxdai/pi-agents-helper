@@ -147,8 +147,12 @@ AGENTS.md + api-list.md 恢复。
   （package.json 的 pi 键声明），无需复制到 `~/.pi/agent/{prompts,extensions}/`
 - **固定路径**：prompt 引用 wrapper/规范/viewer 用固定路径
   `~/.pi/agent/npm/node_modules/pi-agents-helper/...`（只支持用户级安装）
-- **开发仓库**：建 symlink 使固定路径指向仓库（`ln -sfn /root/pi-agents-helper
-  ~/.pi/agent/npm/node_modules/pi-agents-helper`），改仓库代码即生效
+- **开发仓库（根治方案 2026-09-03）**：在 `~/.pi/agent/npm/` 里执行
+  `npm install file:/root/pi-agents-helper --legacy-peer-deps`——npm 把
+  file: 依赖声明进 package.json/lock（建 symlink），以后任何 npm install
+  （pi install 其它包）都不会 prune 它（手建 symlink 不在 package.json
+  是 extraneous，会被清——两次实测教训）。symlink 丢失时检查 package.json
+  是否还有声明，重跑该命令即可。
 - **修改 prompt/扩展后 reload 生效**（pi 从包/仓库实时读取；本地路径注册
   或 symlink 下无需重装）
 - **当前形态**（2026-09-02）：prompt × 2（agents-helper-prepare 背景提炼 +

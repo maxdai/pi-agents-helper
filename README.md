@@ -45,8 +45,13 @@ pi install npm:pi-agents-helper
 - **只支持用户级安装**（项目级 `.pi/npm/` 不支持——prompt 引用的是用户级
   固定路径；项目级安装会导致 prompt 来源与命令路径分离，命令全部失效）
 - reload 后生效：`/agents-helper`、`/agents-helper-human`
-- 开发仓库场景：建 symlink 使固定路径指向仓库
-  （`ln -sfn /root/pi-agents-helper ~/.pi/agent/npm/node_modules/pi-agents-helper`）
+- 开发仓库场景（推荐，根治 2026-09-03）：在固定路径的 npm 根里声明 file:
+  依赖——npm 管理 symlink，以后装别的包不会清掉它：
+  ```bash
+  cd ~/.pi/agent/npm && npm install file:/root/pi-agents-helper --legacy-peer-deps
+  ```
+  （旧方法手动 `ln -sfn` 是 extraneous 条目，会被后续 npm install prune——
+  已两次实测丢失）
 
 **固定路径生效的标准核验法**（2026-09-01 讨论定，不要用命令行长度判断——
 跨讨论比较长度会被 session-id 目录名干扰）：
