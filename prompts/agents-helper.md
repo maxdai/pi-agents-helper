@@ -39,7 +39,7 @@ argument-hint: '"<讨论主题>" [agents 数量]'
 ### 2. 启动讨论
 
 ```bash
-~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --start <spec目录>
+~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --start <spec目录绝对路径>
 ```
 
 记录 wrapper 输出的**讨论目录**，并**原样完整展示** wrapper 输出的观看命令
@@ -58,11 +58,11 @@ argument-hint: '"<讨论主题>" [agents 数量]'
 ### 4. 收尾（用户驱动）
 
 ```bash
-~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --status <讨论目录>   # 查一次：done/stopped/running
+~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --status <讨论目录绝对路径>   # 查一次：done/stopped/running
 ```
 
 - `done`：读 `<讨论目录>/work-c/result.md` → 向用户给**摘要**（完整结论见
-  文件路径）→ `discuss.sh --cleanup <讨论目录>`
+  文件路径）→ `discuss.sh --cleanup <讨论目录绝对路径>`
 - `stopped`：报告"讨论已结束但未生成结果"，不要继续等待
 - `running`：告知用户还在进行，继续等用户通知
 

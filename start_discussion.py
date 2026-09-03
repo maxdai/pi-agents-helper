@@ -652,9 +652,16 @@ def main():
     if not args.dir:
         print("错误: 需要 --dir（讨论运行目录；--spec-gen 不需要）")
         return
-    # --dir 支持任意路径（方案 A）：含 / ~ . 视为完整路径，否则 cwd/discussion-<name>
+    # --dir 语义分场景（2026-09-03 修正）：
+    # 创建模式（--dir 裸名 + 非消费标志）：快捷命名 → cwd/discussion-<name>
+    # 消费模式（--cleanup/--status/--wait/--skip-setup，操作已存在目录）：
+    #   裸名按字面解释（cwd 下同名目录），存在就用不存在报错——前缀快捷
+    #   只属于创建；操作时套用会找错目录（实测 cleanup 裸名潜伏 bug）
+    consuming = (args.cleanup or args.status or args.wait or args.skip_setup)
     if any(ch in args.dir for ch in "/~."):
         base = os.path.abspath(os.path.expanduser(args.dir))
+    elif consuming:
+        base = os.path.join(os.getcwd(), args.dir)
     else:
         base = os.path.join(os.getcwd(), f"discussion-{args.dir}")
 

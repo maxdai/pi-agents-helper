@@ -86,24 +86,29 @@ require_dir() {
     [ -d "$dir" ] || fail "目录不存在: $dir"
 }
 
+# 目录参数规范化：裸名（无路径符）会被 start_discussion 加 discussion-
+# 前缀导致找错目录（实测 2026-09-03）——所有消费命令入口统一转绝对路径
+normalize_dir() {
+    readlink -f "$1"
+}
+
 cmd_status() {
-    local dir="$1"
+    local dir
+    dir="$(normalize_dir "$1")"
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --status
 }
 
 cmd_wait() {
-    local dir="$1"
+    local dir
+    dir="$(normalize_dir "$1")"
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --wait
 }
 
 cmd_cleanup() {
-    # 路径规范化：裸目录名（无路径符）会被 start_discussion 加 discussion-
-    # 前缀导致找不到（实测 2026-09-03）——readlink -f 转绝对路径，
-    # 含 / 后 start_discussion 直接使用
     local dir
-    dir="$(readlink -f "$1")"
+    dir="$(normalize_dir "$1")"
     require_dir "$dir"
     "$PYTHON" "$START_DISCUSSION" --dir "$dir" --cleanup
     # 清理同 session 的 prepare 背景文件（agents-helper-prepare 产物；
@@ -115,7 +120,8 @@ cmd_cleanup() {
 }
 
 cmd_view() {
-    local dir="$1" since=""
+    local dir since=""
+    dir="$(normalize_dir "$1")"
     shift
     while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -142,7 +148,8 @@ cmd_view() {
 }
 
 cmd_say() {
-    local dir="$1" text="${2:-}"
+    local dir text="${2:-}"
+    dir="$(normalize_dir "$1")"
     require_dir "$dir"
     [ -d "$dir/work-human" ] || fail "讨论缺少 work-human: $dir"
     [ -n "$text" ] || fail "插话文本不能为空"
