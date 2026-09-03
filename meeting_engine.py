@@ -30,7 +30,7 @@ import time
 from meeting_fs import (
     git_head, git_pull, git_commit, git_push,
     list_my_messages, new_messages_with_meta, next_msg_id,
-    read_point, read_message, write_message, commit_message,
+    read_point, read_message, write_message, commit_message, setup_commit,
     run_git, parse_frontmatter, serialize_message,
     git_show, is_message_file, parse_log_nameonly,
 )
@@ -315,10 +315,13 @@ def write_protocol_signal(workdir, agent, type_, mode, next_=None):
     """
     # 写前同步：pull 带回并发新 commit（F1）
     git_pull(workdir)
-    head = git_head(workdir)
     # seen_at = 当前读取点（LLM 最后处理点，loop 消息不推进）——
-    # 无历史（首条 loop 消息且无 LLM 参与）→ 用 head 兜底
-    seen_at = read_point(workdir, agent) or head
+    # 无历史（agent 从未 responder 成功）→ 兜底到讨论起点（仓库根 commit
+    # = setup 提交，大家读到 question.md 的时刻）。不用 head：head 随并发
+    # push 漂移，会把 agent 从未读过的消息虚假标记已读（实测 2026-09-03
+    # crash_recovery flaky 根因）；起点固定，从起点读一条不漏。
+    seen_at = read_point(workdir, agent) or setup_commit(workdir)
+    head = git_head(workdir)  # validate_and_fix 用（协议信号正文不含 head 语义）
     msg_id = next_msg_id(workdir, agent)
     fm = {
         "from": agent,

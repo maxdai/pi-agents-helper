@@ -235,6 +235,17 @@ def commit_message(agent, msg_id):
 # 读取点（从消息链推导，无本地状态）
 # ---------------------------------------------------------------
 
+def setup_commit(workdir):
+    """讨论起点 = 仓库根 commit（setup 提交，question.md 诞生点）。
+
+    用途：无历史 agent（从未 responder 成功）写协议信号的 seen_at 兜底——
+    固定锚点，从起点读一条不漏。head 兜底会随并发 push 漂移，把从未
+    读过的消息虚假标记已读（实测 2026-09-03 crash_recovery flaky 根因）。
+    """
+    r = run_git(workdir, "rev-list", "--max-parents=0", "HEAD")
+    return r.stdout.strip()
+
+
 def read_point(workdir, agent_dir):
     """读取点 = 我最后一条参与消息的 seen_at（跳 freezing）。
 

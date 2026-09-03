@@ -23,6 +23,9 @@ from meeting_engine import (
     write_protocol_signal, respond_with_fallback, commit_new_files,
     _is_committed, _stall_elapsed, _result_md_valid, finalize_discussion,
     _commit_result_md,
+    setup_commit,
+    new_messages_with_meta,
+    read_point,
 )
 from meeting_fs import git_head, git_pull, git_commit, write_message, next_msg_id
 
@@ -320,8 +323,39 @@ class TestProtocolSignal(unittest.TestCase):
             self.assertEqual(fm["mode"], "meeting")
             self.assertEqual(fm["from"], "a")
             self.assertEqual(fm["to"], "all")
-            # 首条 loop 消息 seen_at 兜底 = head
-            self.assertEqual(fm["seen_at"], head)
+            # 首条 loop 消息 seen_at 兜底 = 讨论起点（仓库根 commit）
+            # 2026-09-03 改：原 head 兜底会把从未读过的并发消息虚假已读
+            self.assertEqual(fm["seen_at"], head)  # make_env 后 head 即 setup
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_write_protocol_signal_no_history_falls_to_setup(self):
+        """无历史兜底到讨论起点而非 head（2026-09-03 修复）。
+
+        场景：a 首启即全崩（从未 responder 成功，read_point=""），
+        代写 freezing 时 b 已 push 并发消息 M——
+        旧行为 seen_at=含 M 的 head → M 被虚假已读永不处理（flaky 根因）；
+        新行为 seen_at=setup 起点 → M 仍在下次唤醒 meta 中补处理。
+        """
+        tmp, base, bare, works = make_env()
+        try:
+            # b 先写并发消息 M（推进 head）
+            write_message(works["b"], "b/0001.md",
+                          {"from": "b", "type": "message"}, "M")
+            commit_new_files(works["b"], "b", git_head(works["b"]), "meeting")
+            m_head = git_head(bare)  # bare 已含 M（a 未 pull，work-a head 旧）
+            # a 首次写协议信号（无历史）
+            write_protocol_signal(works["a"], "a", "freezing", "meeting")
+            msgs = _each_agent_messages(bare, ["a", "b"])
+            fm = msgs["a"][-1]
+            # seen_at = 起点（setup commit），不是含 M 的 head
+            setup = setup_commit(works["a"])
+            self.assertEqual(fm["seen_at"], setup)
+            self.assertNotEqual(fm["seen_at"], m_head)
+            # M 仍可被 a 看到（read_point=setup → meta 含 M）
+            meta = new_messages_with_meta(works["a"],
+                                          read_point(works["a"], "a"), "a")
+            self.assertIn("b/0001.md", [m["path"] for m in meta])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
