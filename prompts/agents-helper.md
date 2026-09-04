@@ -61,7 +61,8 @@ argument-hint: '"<讨论主题>" [agents 数量]'
 ~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh --status <讨论目录绝对路径>   # 查一次：done/stopped/running
 ```
 
-- `done`：读 `<讨论目录>/work-c/result.md` → 向用户给**摘要**（完整结论见
+- `done`：读 `<讨论目录>/work-<resultWriter>/result.md`（resultWriter =
+  末位参与者，wrapper 启动输出里有具体名字）→ 向用户给**摘要**（完整结论见
   文件路径）→ `discuss.sh --cleanup <讨论目录绝对路径>`
 - `stopped`：报告"讨论已结束但未生成结果"，不要继续等待
 - `running`：告知用户还在进行，继续等用户通知

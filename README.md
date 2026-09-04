@@ -61,13 +61,15 @@ readlink -f ~/.pi/agent/npm/node_modules/pi-agents-helper   # 应指向实际安
 ls ~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh  # 文件存在
 ```
 
-### 用 prompt（推荐，主 pi 会话内）
+### 用 prompt + extension（推荐，主 pi 会话内）
 
 ```
 /agents-helper-prepare "<讨论主题>"            # 第一步：提炼背景 → discuss_prepare_<sid>.md
 /agents-helper "<主题>" [agents 数量]        # 第二步：启动讨论（wrapper 自动引用 prepare 文件）
 /agents-helper-human "<文本>"                  # 讨论中插话（agents 可见可回应）
 ```
+
+日常使用即这三个入口的搭配（详见下方「入口用法」）。
 
 两步拆分（2026-09-02）：背景提炼（LLM 思考型）与启动讨论（流程型）分离为
 两个 prompt，各自单一职责。`agents-helper-prepare` 只提炼背景写入
@@ -77,7 +79,10 @@ ls ~/.pi/agent/npm/node_modules/pi-agents-helper/scripts/discuss.sh  # 文件存
 agents 需要时可读取）；如需把背景强制嵌入（必读），可在审核 spec 时把
 背景节内容复制进 background.md（可选加强）。
 
-### 用命令行（直接操作）
+## 用命令行（开发/调试形态）
+
+日常使用走上面的 prompt + extension 搭配；以下为不进 pi 会话直接操作的
+底层命令（调试 / 脚本化场景）：
 
 ```bash
 # 1. 创建并启动一个 2-agent 讨论
@@ -167,13 +172,19 @@ npm 包 `pi-agents-helper` 提供两个 prompt template 与一个扩展命令（
 
 | 入口 | 形态 | 用途 | 观看方式 |
 |---|---|---|---|
-| `/agents-helper "<问题>" [agents 数量]` | prompt | **默认模式**（pi-web/无终端可用）；`agents 数量` 可选（默认 3，数字或名称列表） | 本地 viewer（见下），观看不进 LLM（零 token） |
-| `/agents-helper-human "<文本>"` | extension | **插话**（讨论进行中） | —（一条消息，立即发送） |
+| `/agents-helper-prepare "<讨论主题>"` | prompt | **第一步**：提炼当前对话中与主题相关的背景 → discuss_prepare_<sid>.md（不启动讨论） | —（写完即结束回合） |
+| `/agents-helper "<主题>" [agents 数量]` | prompt | **第二步：启动讨论**（自动引用 prepare 文件；默认模式，pi-web/无终端可用）；`agents 数量` 可选（默认 3，数字或名称列表） | 本地 viewer（见下），观看不进 LLM（零 token） |
+| `/agents-helper-human "<文本>"` | extension | **插话**（讨论进行中，零 LLM 直接执行） | —（一条消息，立即发送） |
+
+典型搭配：`/agents-helper-prepare` 提炼背景 → `/agents-helper` 启动 →
+`!!` 观看 + `/agents-helper-human` 插话 → 用户告知完成 → 主 pi 收尾。
 
 讨论进行中，普通 user message 一律视为与主 pi 对话；插话请用
 `/agents-helper-human`（扩展命令，零 LLM 直接执行）。
 
-### 观看方式（viewer 全文不进 LLM）```bash
+### 观看方式（viewer 全文不进 LLM）
+
+```bash
 # 有终端：任何终端实时滚动
 python3 human_viewer.py <目录> --follow
 
@@ -186,7 +197,7 @@ python3 human_viewer.py <目录> --follow
 1. `discuss.sh --prepare "<问题>" [--agents ...] --background "<背景>"` → 主 pi **提炼当前对话中相关背景**写入 background，生成 spec（继承主 pi model/thinking）；**展示 spec 请用户查看/编辑**（background.md 可修改），确认后继续
 2. 用户确认后 `discuss.sh --start <spec>` → 讨论启动，输出讨论目录 + **完整 `!!` 观看命令**（用户复制执行）
 3. **主 pi 结束回合**（不轮询、不等待）——用户通过 `!!` 观看，viewer 在讨论 done 时自动退出；用户说"结束了"或询问时主 pi 查一次 `--status`
-4. `done` → 读 `<目录>/work-c/result.md` → 向用户摘要
+4. `done` → 读 `<目录>/work-<resultWriter>/result.md`（末位参与者，启动输出里有）→ 向用户摘要
 5. `discuss.sh --cleanup <目录>`（必须，避免残留 session）
 
 wrapper 命令一览：
