@@ -433,11 +433,6 @@ SETTINGS_EOF
         fi
     done
 
-    # resultWriter 提示文案（rm spec 前提取：最后参与者；agents 参数化后
-    # 不能硬编码 c——--agents 4/x,y 时 work-c 不存在会误导）
-    local rw_name
-    rw_name="$(tail -1 "$spec_dir/agents/.order" 2>/dev/null)"
-
     # 临时 spec 已被消费，删除
     rm -rf "$spec_dir"
 
@@ -462,8 +457,8 @@ SETTINGS_EOF
 说明:
 - human 通道：--view 增量查看（主 pi 记录末尾 HEAD 作下轮 --since）；
   --say 插话（agents 可见并可回应；已冻结 agent 不响应）
-- 完成后 result.md 默认由 resultWriter=${rw_name:-末位参与者} 生成，位于 $dir_path/work-${rw_name:-c}/result.md
-- 读取 result.md 后请执行 --cleanup 清理讨论目录
+- 完成后 result.md 自动保存到固定位置：$dir_path-result.md（与讨论目录同级——resultWriter loop 退出时保存；cleanup 也会保存）
+- 读取 result.md 摘要后请执行 --cleanup 清理讨论目录
 OUTPUT_EOF
 }
 
